@@ -177,7 +177,7 @@ export default function StylePage() {
 function StylesGrid() {
   return (
     <div className="grid grid-cols-1 gap-5 md:grid-cols-2 xl:grid-cols-3">
-      {STYLE_ORDER.map((id, i) => {
+      {STYLE_ORDER.map((id) => {
         const meta = META[id];
         const palette = PALETTES[id];
         const isActive = id === "yellow";
