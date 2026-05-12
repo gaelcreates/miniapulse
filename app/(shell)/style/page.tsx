@@ -4,7 +4,6 @@ import { Suspense, useState, useRef } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { PersonaBust } from "@/app/_components/persona";
-import { STYLE_META, type StyleId } from "@/app/_components/thumbs";
 import { showToast } from "@/app/_components/ui/toast";
 
 /* ─── persona types ─── */
@@ -818,35 +817,3 @@ function BrandKit() {
 }
 
 /* ═══ PROMPTS ═══ */
-function PromptsGrid() {
-  const prompts = [
-    {title:"Coaching · résultat chiffré",    uses:28,ctr:"+38%",style:"yellow" as StyleId},
-    {title:"SaaS · MRR + dashboard flou",    uses:19,ctr:"+29%",style:"cyan"   as StyleId},
-    {title:"Mindset · vérité crue barrée",   uses:24,ctr:"+44%",style:"truth"  as StyleId},
-    {title:"Productivité · chiffre + chaud", uses:11,ctr:"+22%",style:"soft"   as StyleId},
-    {title:"Ventes · ultimatum rouge",        uses:16,ctr:"+31%",style:"red"    as StyleId},
-    {title:"Stratégie · compte à rebours",   uses:9, ctr:"+52%",style:"wakeup" as StyleId},
-  ];
-  return (
-    <div className="mt-8 grid grid-cols-1 gap-px overflow-hidden rounded-xl bg-line md:grid-cols-2 xl:grid-cols-3">
-      {prompts.map(p => {
-        const meta = STYLE_META[p.style];
-        return (
-          <div key={p.title} className="bg-ink-900 p-5 hover:bg-ink-800 transition-colors">
-            <div className="flex items-start gap-3">
-              <span className="mt-0.5 h-8 w-8 shrink-0 rounded-md ring-1 ring-white/10" style={{background:`linear-gradient(135deg,${meta.swatch} 0%,#000 130%)`}}/>
-              <div className="min-w-0 flex-1">
-                <div className="text-[13px] font-medium text-white/95">{p.title}</div>
-                <div className="mt-0.5 font-mono text-[9px] tracking-widest text-white/40">{meta.name.toUpperCase()} · {p.uses} GEN · <span className="text-accent-success">{p.ctr} CTR</span></div>
-              </div>
-            </div>
-            <div className="mt-3 flex gap-2">
-              <button onClick={()=>showToast("Prompt dupliqué !")} className="flex-1 rounded-md border border-line bg-white/[0.02] py-1.5 font-mono text-[9px] tracking-widest text-white/60 hover:bg-white/[0.05]">DUPLIQUER</button>
-              <button onClick={()=>showToast("Prompt appliqué !","info")} className="flex-1 rounded-md bg-white/[0.06] py-1.5 font-mono text-[9px] tracking-widest text-white hover:bg-white/[0.1]">UTILISER</button>
-            </div>
-          </div>
-        );
-      })}
-    </div>
-  );
-}

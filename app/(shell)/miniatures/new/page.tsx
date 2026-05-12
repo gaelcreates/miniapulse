@@ -418,7 +418,7 @@ function hexToHsl(hex: string): [number, number, number] {
 function hslToHex(h: number, s: number, l: number): string {
   const hn = h / 360, sn = s / 100, ln = l / 100;
   const hue2rgb = (p: number, q: number, t: number) => {
-    let tt = t < 0 ? t + 1 : t > 1 ? t - 1 : t;
+    const tt = t < 0 ? t + 1 : t > 1 ? t - 1 : t;
     if (tt < 1/6) return p + (q - p) * 6 * tt;
     if (tt < 1/2) return q;
     if (tt < 2/3) return p + (q - p) * (2/3 - tt) * 6;
