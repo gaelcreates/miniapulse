@@ -37,17 +37,6 @@ const STUDIO: Item[] = [
 
 const OPTIM: Item[] = [
   {
-    href: "/abtests",
-    label: "A/B Tests",
-    badge: { text: "1", tone: "cyan" },
-    icon: <svg viewBox="0 0 16 16" fill="none"><path d="M2 4h5v8H2z" stroke="currentColor" strokeWidth="1.4" strokeLinejoin="round"/><path d="M9 4h5v8H9z" stroke="currentColor" strokeWidth="1.4" strokeLinejoin="round"/><path d="M7 8h2" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round"/></svg>,
-  },
-  {
-    href: "/hooks",
-    label: "Hooks",
-    icon: <svg viewBox="0 0 16 16" fill="none"><path d="M3 4h10M3 8h7M3 12h5" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round"/></svg>,
-  },
-  {
     href: "/analytics",
     label: "Analytics",
     icon: <svg viewBox="0 0 16 16" fill="none"><path d="M2.5 13.5V2.5" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round"/><path d="M2.5 13.5H13.5" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round"/><path d="M5.5 11V8M8 11V5.5M10.5 11V7" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round"/></svg>,
@@ -73,37 +62,56 @@ const COMPTE: Item[] = [
   },
 ];
 
-function NavItem({ item, active }: { item: Item; active: boolean }) {
+function NavItem({ item, active, collapsed }: { item: Item; active: boolean; collapsed: boolean }) {
   return (
     <Link
       href={item.href}
-      className={`group relative flex items-center gap-3 rounded-md px-3 py-2 transition-colors ${
-        active ? "bg-white/[0.05] text-white" : "text-white/50 hover:bg-white/[0.025] hover:text-white"
-      }`}
+      title={collapsed ? item.label : undefined}
+      className={`group relative flex items-center rounded-md transition-colors ${
+        collapsed ? "justify-center px-0 py-2.5" : "gap-3 px-3 py-2"
+      } ${active ? "bg-white/[0.05] text-white" : "text-white/50 hover:bg-white/[0.025] hover:text-white"}`}
     >
-      {active && <span className="absolute left-0 top-1/2 h-5 w-[2px] -translate-y-1/2 rounded-full bg-accent-cyan" />}
+      {active && !collapsed && (
+        <span className="absolute left-0 top-1/2 h-5 w-[2px] -translate-y-1/2 rounded-full bg-accent-cyan" />
+      )}
+      {active && collapsed && (
+        <span className="absolute left-0 top-1/2 h-5 w-[2px] -translate-y-1/2 rounded-full bg-accent-cyan" />
+      )}
       <span className={`h-4 w-4 shrink-0 ${active ? "text-accent-cyan" : "text-white/50"}`}>{item.icon}</span>
-      <span className="flex-1 text-[13px] font-medium tracking-tight">{item.label}</span>
-      {item.badge && (
-        <span className={`rounded px-1.5 py-0.5 font-mono text-[9px] font-semibold leading-none tracking-widest ${
-          item.badge.tone === "cyan"   ? "bg-accent-cyan/15 text-accent-cyan" :
-          item.badge.tone === "yellow" ? "bg-accent-yellow/15 text-accent-yellow" :
-                                         "bg-accent-danger/15 text-accent-danger"
-        }`}>{item.badge.text}</span>
+
+      {!collapsed && (
+        <>
+          <span className="flex-1 text-[13px] font-medium tracking-tight">{item.label}</span>
+          {item.badge && (
+            <span className={`rounded px-1.5 py-0.5 font-mono text-[9px] font-semibold leading-none tracking-widest ${
+              item.badge.tone === "cyan"   ? "bg-accent-cyan/15 text-accent-cyan" :
+              item.badge.tone === "yellow" ? "bg-accent-yellow/15 text-accent-yellow" :
+                                             "bg-accent-danger/15 text-accent-danger"
+            }`}>{item.badge.text}</span>
+          )}
+        </>
+      )}
+
+      {/* Badge dot in collapsed mode */}
+      {collapsed && item.badge && (
+        <span className={`absolute right-1 top-1.5 h-1.5 w-1.5 rounded-full ${
+          item.badge.tone === "cyan" ? "bg-accent-cyan" :
+          item.badge.tone === "yellow" ? "bg-accent-yellow" : "bg-accent-danger"
+        }`} />
+      )}
+
+      {/* Tooltip on collapsed */}
+      {collapsed && (
+        <div className="pointer-events-none absolute left-full ml-3 hidden whitespace-nowrap rounded-lg border border-line bg-ink-900 px-3 py-1.5 text-[12px] font-medium text-white shadow-xl group-hover:block z-50">
+          {item.label}
+          {item.badge && <span className="ml-2 font-mono text-[9px] text-white/50">{item.badge.text}</span>}
+        </div>
       )}
     </Link>
   );
 }
 
-function SectionLabel({ children, className = "" }: { children: React.ReactNode; className?: string }) {
-  return (
-    <div className={`px-3 font-mono text-[9px] font-medium tracking-[0.2em] text-white/30 ${className}`}>
-      {children}
-    </div>
-  );
-}
-
-function SidebarInner() {
+function SidebarInner({ collapsed, onToggle }: { collapsed: boolean; onToggle: () => void }) {
   const pathname = usePathname() || "/";
 
   function isActive(href: string) {
@@ -111,76 +119,112 @@ function SidebarInner() {
   }
 
   return (
-    <aside className="fixed inset-y-0 left-0 z-30 hidden w-[240px] flex-col border-r border-line bg-ink-950 lg:flex">
-      {/* Logo */}
-      <div className="flex items-center gap-2.5 px-5 py-5">
-        <Link href="/" className="flex items-center gap-2.5">
-          <span className="inline-flex h-8 w-8 items-center justify-center rounded-lg bg-accent-cyan text-black">
+    <aside className={`fixed inset-y-0 left-0 z-30 hidden flex-col border-r border-line bg-ink-950 transition-[width] duration-300 lg:flex ${collapsed ? "w-[60px]" : "w-[240px]"}`}>
+
+      {/* Logo + toggle */}
+      {collapsed ? (
+        <div className="flex flex-col items-center gap-2 border-b border-line px-0 py-3">
+          <Link href="/" className="inline-flex h-8 w-8 items-center justify-center rounded-lg bg-accent-cyan text-black hover:opacity-90 transition-opacity">
             <span className="font-display text-[15px] leading-none">M</span>
-          </span>
-          <span className="text-[17px] font-semibold tracking-tight">
-            MiniaPulse<span className="text-accent-cyan">.</span>
-          </span>
-        </Link>
-      </div>
+          </Link>
+          <button
+            onClick={onToggle}
+            className="flex h-6 w-6 items-center justify-center rounded-md border border-line text-white/35 hover:border-line-strong hover:text-white transition-colors"
+            title="Agrandir"
+          >
+            <svg viewBox="0 0 16 16" className="h-3 w-3 rotate-180" fill="none">
+              <path d="M10 3L6 8L10 13" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+            </svg>
+          </button>
+        </div>
+      ) : (
+        <div className="flex items-center justify-between border-b border-line px-4 py-4">
+          <Link href="/" className="flex items-center gap-2.5">
+            <span className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-accent-cyan text-black">
+              <span className="font-display text-[15px] leading-none">M</span>
+            </span>
+            <span className="text-[16px] font-semibold tracking-tight">
+              MiniaPulse<span className="text-accent-cyan">.</span>
+            </span>
+          </Link>
+          <button
+            onClick={onToggle}
+            className="flex h-7 w-7 items-center justify-center rounded-lg border border-line text-white/35 hover:border-line-strong hover:text-white transition-colors"
+            title="Réduire"
+          >
+            <svg viewBox="0 0 16 16" className="h-3.5 w-3.5" fill="none">
+              <path d="M10 3L6 8L10 13" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+            </svg>
+          </button>
+        </div>
+      )}
 
       {/* Nav */}
-      <nav className="flex-1 overflow-y-auto px-3 py-2 space-y-4">
+      <nav className={`flex-1 overflow-y-auto overflow-x-hidden py-3 ${collapsed ? "px-2" : "px-3"} space-y-4`}>
         <div>
-          <SectionLabel className="mb-1.5">STUDIO</SectionLabel>
+          {!collapsed && <div className="mb-1.5 px-3 font-mono text-[9px] font-medium tracking-[0.2em] text-white/30">STUDIO</div>}
           <div className="space-y-0.5">
-            {STUDIO.map(it => <NavItem key={it.href} item={it} active={isActive(it.href)} />)}
+            {STUDIO.map(it => <NavItem key={it.href} item={it} active={isActive(it.href)} collapsed={collapsed} />)}
           </div>
         </div>
 
         <div>
-          <SectionLabel className="mb-1.5">OPTIMISATION</SectionLabel>
+          {!collapsed && <div className="mb-1.5 px-3 font-mono text-[9px] font-medium tracking-[0.2em] text-white/30">OPTIMISATION</div>}
+          {collapsed && <div className="my-1 mx-2 h-px bg-white/[0.06]" />}
           <div className="space-y-0.5">
-            {OPTIM.map(it => <NavItem key={it.href} item={it} active={isActive(it.href)} />)}
+            {OPTIM.map(it => <NavItem key={it.href} item={it} active={isActive(it.href)} collapsed={collapsed} />)}
           </div>
         </div>
 
         <div>
-          <SectionLabel className="mb-1.5">COMPTE</SectionLabel>
+          {!collapsed && <div className="mb-1.5 px-3 font-mono text-[9px] font-medium tracking-[0.2em] text-white/30">COMPTE</div>}
+          {collapsed && <div className="my-1 mx-2 h-px bg-white/[0.06]" />}
           <div className="space-y-0.5">
-            {COMPTE.map(it => <NavItem key={it.href} item={it} active={isActive(it.href)} />)}
+            {COMPTE.map(it => <NavItem key={it.href} item={it} active={isActive(it.href)} collapsed={collapsed} />)}
           </div>
         </div>
       </nav>
 
-      {/* Footer — credits + user */}
-      <div className="space-y-3 border-t border-line px-4 py-4">
-        <div>
-          <div className="flex items-center justify-between">
-            <span className="text-[11px] text-white/45">Crédits restants</span>
-            <span className="font-mono text-[11px] text-white/75">218 / 300</span>
+      {/* Footer */}
+      {!collapsed ? (
+        <div className="space-y-3 border-t border-line px-4 py-4">
+          <div>
+            <div className="flex items-center justify-between">
+              <span className="text-[11px] text-white/45">Crédits</span>
+              <span className="font-mono text-[11px] text-white/75">218 / 300</span>
+            </div>
+            <div className="mt-1.5 h-1 overflow-hidden rounded-full bg-white/[0.06]">
+              <div className="h-full rounded-full bg-accent-cyan" style={{ width: "73%" }} />
+            </div>
+            <div className="mt-1.5 flex items-center justify-between">
+              <span className="text-[10px] text-white/35">Reset dans 8j</span>
+              <Link href="/plan" className="text-[10px] text-accent-cyan hover:opacity-80">↑ Upgrade</Link>
+            </div>
           </div>
-          <div className="mt-1.5 h-1 overflow-hidden rounded-full bg-white/[0.06]">
-            <div className="h-full rounded-full bg-accent-cyan" style={{ width: "73%" }} />
-          </div>
-          <div className="mt-1.5 flex items-center justify-between">
-            <span className="text-[10px] text-white/35">Reset dans 8j</span>
-            <Link href="/plan" className="text-[10px] text-accent-cyan hover:opacity-80">↑ Upgrade</Link>
-          </div>
+          <button className="flex w-full items-center gap-2.5 rounded-lg p-2 text-left transition-colors hover:bg-white/[0.03]">
+            <span className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-accent-cyan font-semibold text-[11px] text-black">MC</span>
+            <span className="min-w-0 flex-1">
+              <span className="block truncate text-[12px] text-white">Marc C.</span>
+              <span className="block truncate text-[10px] text-white/40">Plan Studio</span>
+            </span>
+            <span className="text-white/30">⋯</span>
+          </button>
         </div>
-
-        <button className="flex w-full items-center gap-2.5 rounded-lg p-2 text-left transition-colors hover:bg-white/[0.03]">
-          <span className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-accent-cyan font-semibold text-[11px] text-black">MC</span>
-          <span className="min-w-0 flex-1">
-            <span className="block truncate text-[12px] text-white">Marc C.</span>
-            <span className="block truncate text-[10px] text-white/40">Plan Studio</span>
-          </span>
-          <span className="text-white/30">⋯</span>
-        </button>
-      </div>
+      ) : (
+        <div className="border-t border-line px-2 py-3 flex justify-center">
+          <Link href="/profil" title="Profil" className="inline-flex h-8 w-8 items-center justify-center rounded-full bg-accent-cyan font-semibold text-[11px] text-black hover:opacity-90">
+            MC
+          </Link>
+        </div>
+      )}
     </aside>
   );
 }
 
-export function Sidebar() {
+export function Sidebar({ collapsed = false, onToggle }: { collapsed?: boolean; onToggle?: () => void }) {
   return (
-    <Suspense fallback={<aside className="fixed inset-y-0 left-0 z-30 hidden w-[240px] border-r border-line bg-ink-950 lg:block" />}>
-      <SidebarInner />
+    <Suspense fallback={<aside className={`fixed inset-y-0 left-0 z-30 hidden border-r border-line bg-ink-950 lg:block ${collapsed ? "w-[60px]" : "w-[240px]"}`} />}>
+      <SidebarInner collapsed={collapsed} onToggle={onToggle ?? (() => {})} />
     </Suspense>
   );
 }

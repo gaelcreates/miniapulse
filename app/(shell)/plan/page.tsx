@@ -104,7 +104,7 @@ export default function PlanPage() {
                 <th className="px-5 py-3 text-left">RÉFÉRENCE</th>
                 <th className="px-5 py-3 text-left">DATE</th>
                 <th className="px-5 py-3 text-right">MONTANT</th>
-                <th className="px-5 py-3 text-right">PDF</th>
+                <th className="px-5 py-3 text-right">CONTACT</th>
               </tr>
             </thead>
             <tbody>
@@ -120,12 +120,12 @@ export default function PlanPage() {
                   <td className="px-5 py-3 text-white/65">{inv.date}</td>
                   <td className="px-5 py-3 text-right font-mono text-white">{inv.amount}</td>
                   <td className="px-5 py-3 text-right">
-                    <button
-                      onClick={() => showToast(`Téléchargement ${inv.id}.pdf…`, "info")}
-                      className="font-mono text-[10px] tracking-widest text-white/55 hover:text-white"
+                    <a
+                      href={`mailto:support@miniapulse.app?subject=Facture ${inv.id}&body=Bonjour,%0D%0A%0D%0AJe souhaite obtenir la facture ${inv.id} du ${inv.date} (${inv.amount}).%0D%0A%0D%0AMerci.`}
+                      className="inline-flex items-center gap-1 font-mono text-[10px] tracking-widest text-accent-cyan hover:opacity-75 transition-opacity"
                     >
-                      ↓ PDF
-                    </button>
+                      ✉ SAV
+                    </a>
                   </td>
                 </tr>
               ))}

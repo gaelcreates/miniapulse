@@ -51,10 +51,17 @@ export default function GaleriePage() {
   }
 
   function handleDeleteSelected() {
-    setItems(p => p.filter(i => !selected.includes(i.id)));
-    showToast(`${selected.length} miniature(s) supprimée(s)`, "info");
+    // Capture snapshot avant tout setState pour éviter les closures stales
+    const ids = [...selected];
+    const count = ids.length;
+    setItems(prev => prev.filter(i => !ids.includes(i.id)));
     setSelected([]);
     setDeleteBulkConfirm(false);
+    showToast(`${count} miniature${count > 1 ? "s" : ""} supprimée${count > 1 ? "s" : ""}`, "info");
+  }
+
+  function selectAll() {
+    setSelected(filtered.map(i => i.id));
   }
 
   const itemToDelete = items.find(i => i.id === deleteConfirm);
@@ -91,23 +98,39 @@ export default function GaleriePage() {
           <p className="mt-2 text-[14px] text-white/50">{items.length} miniatures · CTR moyen <span className="text-accent-success">{avgCtr}%</span></p>
         </div>
         <div className="flex items-center gap-2">
-          {selected.length > 0 && (
+          {selected.length > 0 ? (
             <div className="flex items-center gap-2">
-              <span className="font-mono text-[10px] tracking-widest text-white/40">{selected.length} sélectionnée(s)</span>
-              <button onClick={() => { showToast(`${selected.length} miniature(s) exportées !`); setSelected([]); }} className="inline-flex items-center gap-1.5 rounded-lg border border-accent-cyan/40 bg-accent-cyan/[0.06] px-3 py-2 text-[12px] font-semibold text-accent-cyan hover:bg-accent-cyan/[0.1]">
+              <span className="font-mono text-[10px] tracking-widest text-white/55">
+                {selected.length} / {filtered.length} sélectionnée{selected.length > 1 ? "s" : ""}
+              </span>
+              {selected.length < filtered.length && (
+                <button
+                  onClick={selectAll}
+                  className="rounded-lg border border-line px-3 py-2 text-[12px] text-white/50 hover:text-white transition-colors"
+                >
+                  Tout sélectionner
+                </button>
+              )}
+              <button
+                onClick={() => { showToast(`${selected.length} miniature(s) exportées !`); setSelected([]); }}
+                className="inline-flex items-center gap-1.5 rounded-lg border border-accent-cyan/40 bg-accent-cyan/[0.06] px-3 py-2 text-[12px] font-semibold text-accent-cyan hover:bg-accent-cyan/[0.1]"
+              >
                 ↓ Exporter
               </button>
               <button
                 onClick={() => setDeleteBulkConfirm(true)}
-                className="inline-flex items-center gap-1.5 rounded-lg border border-accent-danger/40 bg-accent-danger/[0.06] px-3 py-2 text-[12px] font-semibold text-accent-danger hover:bg-accent-danger/[0.1]"
+                className="inline-flex items-center gap-1.5 rounded-lg border border-accent-danger/40 bg-accent-danger/[0.06] px-3 py-2 text-[12px] font-bold text-accent-danger hover:bg-accent-danger/[0.14] transition-colors"
               >
-                ✕ Supprimer
+                ✕ Supprimer ({selected.length})
               </button>
-              <button onClick={() => setSelected([])} className="rounded-lg border border-line px-3 py-2 text-[12px] text-white/40 hover:text-white">
+              <button
+                onClick={() => setSelected([])}
+                className="rounded-lg border border-line px-3 py-2 text-[12px] text-white/40 hover:text-white transition-colors"
+              >
                 Annuler
               </button>
             </div>
-          )}
+          ) : null}
           <button onClick={() => setView(v => v==="grid"?"list":"grid")} className="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-line bg-white/[0.02] text-white/50 hover:text-white">
             {view==="grid" ? "☰" : "⊞"}
           </button>

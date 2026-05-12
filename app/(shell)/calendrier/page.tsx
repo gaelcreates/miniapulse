@@ -1,5 +1,7 @@
 "use client";
 
+"use client";
+
 import { useState } from "react";
 import { Thumb, type StyleId } from "@/app/_components/thumbs";
 import { showToast } from "@/app/_components/ui/toast";
@@ -9,7 +11,20 @@ type CalEvent = {
   style: StyleId; hook: string;
   status: "planned" | "generated" | "published";
   ctr?: number;
+  selectedMinia?: { style: StyleId; hook: string };
 };
+
+// Mock galerie — en prod ce serait les vraies miniatures de l'utilisateur
+const GALERIE_MOCK: Array<{ id: number; title: string; style: StyleId; hook: string }> = [
+  { id:1,  title:"Comment j'ai signé 50K€",         style:"yellow", hook:"▶ J'AI SIGNÉ"  },
+  { id:2,  title:"Du MVP à 10K MRR en solo",          style:"cyan",   hook:"10K MRR"      },
+  { id:3,  title:"Ce que personne ne te dit",         style:"truth",  hook:"LA VÉRITÉ"    },
+  { id:4,  title:"Mon système 4h/jour",               style:"soft",   hook:"4H / JOUR"    },
+  { id:5,  title:"Le script pour closer 80%",         style:"red",    hook:"80% CLOSE"    },
+  { id:6,  title:"Pourquoi tu vas perdre 6 mois",    style:"wakeup", hook:"PERDRE 6 MOIS"},
+  { id:7,  title:"Ma méthode de contenu",             style:"yellow", hook:"MA MÉTHODE"   },
+  { id:8,  title:"Les 3 erreurs fatales",             style:"truth",  hook:"3 ERREURS"    },
+];
 
 const MONTH = "Avril 2026";
 const DAYS_IN_MONTH = 30;
@@ -45,6 +60,8 @@ export default function CalendrierPage() {
   const [selected, setSelected] = useState<CalEvent | null>(null);
   const [addDay, setAddDay] = useState<number | null>(null);
   const [addTitle, setAddTitle] = useState("");
+  const [addMinia, setAddMinia] = useState<typeof GALERIE_MOCK[0] | null>(null);
+  const [showGaleriePicker, setShowGaleriePicker] = useState(false);
 
   const totalCells = FIRST_DAY + DAYS_IN_MONTH;
   const weeks = Math.ceil(totalCells / 7);
@@ -57,11 +74,13 @@ export default function CalendrierPage() {
     if (!addTitle.trim() || !addDay) { showToast("Ajoute un titre", "error"); return; }
     setEvents(p => [...p, {
       id: Date.now(), day: addDay, title: addTitle,
-      style: "yellow", hook: addTitle.slice(0,15).toUpperCase(),
-      status: "planned",
+      style: addMinia?.style ?? "yellow",
+      hook: addMinia?.hook ?? addTitle.slice(0, 15).toUpperCase(),
+      status: addMinia ? "generated" : "planned",
+      selectedMinia: addMinia ? { style: addMinia.style, hook: addMinia.hook } : undefined,
     }]);
-    setAddTitle(""); setAddDay(null);
-    showToast("Miniature planifiée !");
+    setAddTitle(""); setAddDay(null); setAddMinia(null); setShowGaleriePicker(false);
+    showToast(addMinia ? "Miniature planifiée avec visuel !" : "Vidéo planifiée !");
   }
 
   const stats = {
@@ -197,7 +216,6 @@ export default function CalendrierPage() {
               {selected.status==="generated" && (
                 <button onClick={()=>{showToast("Publication programmée !");setSelected(null);}} className="flex-1 rounded-lg bg-accent-success py-2 text-[12px] font-bold text-black">Publier maintenant →</button>
               )}
-              <button onClick={()=>{showToast("A/B test créé !","info");setSelected(null);}} className="rounded-lg border border-line px-4 py-2 text-[12px] text-white/60 hover:bg-white/[0.04]">A/B Test</button>
               <button onClick={()=>{setEvents(p=>p.filter(e=>e.id!==selected.id));setSelected(null);showToast("Supprimé","info");}} className="rounded-lg border border-line px-4 py-2 text-[12px] text-white/40 hover:text-accent-danger hover:border-accent-danger/40">✕</button>
             </div>
           </div>
@@ -206,19 +224,90 @@ export default function CalendrierPage() {
 
       {/* Add event modal */}
       {addDay && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/75 backdrop-blur-sm p-4" onClick={e=>e.target===e.currentTarget&&setAddDay(null)}>
-          <div className="w-full max-w-[380px] overflow-hidden rounded-2xl border border-line bg-ink-950 shadow-2xl">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/75 backdrop-blur-sm p-4"
+          onClick={e => e.target === e.currentTarget && (setAddDay(null), setAddMinia(null), setShowGaleriePicker(false))}>
+          <div className="w-full max-w-[460px] overflow-hidden rounded-2xl border border-line bg-ink-950 shadow-2xl">
             <div className="flex items-center justify-between border-b border-line px-5 py-3">
               <div className="text-[14px] font-semibold">Planifier — {addDay} {MONTH}</div>
-              <button onClick={()=>setAddDay(null)} className="text-white/40 hover:text-white">✕</button>
+              <button onClick={() => { setAddDay(null); setAddMinia(null); setShowGaleriePicker(false); }}
+                className="text-white/40 hover:text-white">✕</button>
             </div>
-            <div className="p-5">
-              <div className="mb-2 font-mono text-[9px] tracking-widest text-white/40">TITRE DE LA VIDÉO</div>
-              <input autoFocus value={addTitle} onChange={e=>setAddTitle(e.target.value)} onKeyDown={e=>e.key==="Enter"&&handleAddEvent()} placeholder="ex: Comment j'ai…" className="w-full rounded-xl border border-line bg-white/[0.03] px-4 py-3 text-[13px] text-white placeholder:text-white/20 outline-none focus:border-accent-cyan/50"/>
+
+            <div className="p-5 space-y-4">
+              {/* Titre */}
+              <div>
+                <div className="mb-2 font-mono text-[9px] tracking-widest text-white/40">TITRE DE LA VIDÉO</div>
+                <input autoFocus value={addTitle} onChange={e => setAddTitle(e.target.value)}
+                  onKeyDown={e => e.key === "Enter" && !showGaleriePicker && handleAddEvent()}
+                  placeholder="ex: Comment j'ai signé 50K€…"
+                  className="w-full rounded-xl border border-line bg-white/[0.03] px-4 py-3 text-[13px] text-white placeholder:text-white/20 outline-none focus:border-accent-cyan/50" />
+              </div>
+
+              {/* Miniature picker */}
+              <div>
+                <div className="mb-2 font-mono text-[9px] tracking-widest text-white/40">MINIATURE <span className="text-white/20">(optionnel)</span></div>
+                {addMinia ? (
+                  <div className="flex items-center gap-3 rounded-xl border border-accent-cyan/40 bg-accent-cyan/[0.04] p-3">
+                    <div className="w-20 shrink-0 overflow-hidden rounded-lg ring-1 ring-white/10">
+                      <Thumb id={addMinia.style} hook={addMinia.hook} />
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <div className="truncate text-[12px] font-medium text-white/85">{addMinia.title}</div>
+                      <div className="mt-0.5 font-mono text-[9px] text-accent-cyan">✓ SÉLECTIONNÉE</div>
+                    </div>
+                    <button onClick={() => setAddMinia(null)}
+                      className="shrink-0 text-white/35 hover:text-white text-[13px]">✕</button>
+                  </div>
+                ) : (
+                  <button
+                    onClick={() => setShowGaleriePicker(v => !v)}
+                    className={`flex w-full items-center gap-2 rounded-xl border px-4 py-3 text-left text-[12px] transition-colors ${
+                      showGaleriePicker ? "border-accent-cyan/50 bg-accent-cyan/[0.04] text-accent-cyan" : "border-dashed border-line text-white/45 hover:border-line-strong hover:text-white"
+                    }`}
+                  >
+                    <svg viewBox="0 0 16 16" className="h-3.5 w-3.5 shrink-0" fill="none">
+                      <rect x="2" y="2" width="5" height="5" rx="1" stroke="currentColor" strokeWidth="1.4"/>
+                      <rect x="9" y="2" width="5" height="5" rx="1" stroke="currentColor" strokeWidth="1.4"/>
+                      <rect x="2" y="9" width="5" height="5" rx="1" stroke="currentColor" strokeWidth="1.4"/>
+                      <rect x="9" y="9" width="5" height="5" rx="1" stroke="currentColor" strokeWidth="1.4"/>
+                    </svg>
+                    {showGaleriePicker ? "Fermer la galerie" : "Choisir depuis ma galerie"}
+                  </button>
+                )}
+
+                {/* Galerie picker */}
+                {showGaleriePicker && !addMinia && (
+                  <div className="mt-2 max-h-[220px] overflow-y-auto rounded-xl border border-line bg-ink-900 p-2">
+                    <div className="grid grid-cols-2 gap-2">
+                      {GALERIE_MOCK.map(m => (
+                        <button
+                          key={m.id}
+                          onClick={() => { setAddMinia(m); setShowGaleriePicker(false); }}
+                          className="group overflow-hidden rounded-lg border border-line bg-ink-800 text-left transition-all hover:border-accent-cyan/50"
+                        >
+                          <div className="overflow-hidden">
+                            <Thumb id={m.style} hook={m.hook} />
+                          </div>
+                          <div className="px-2 py-1.5">
+                            <div className="truncate text-[10px] text-white/65 group-hover:text-white">{m.title}</div>
+                          </div>
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
             </div>
+
             <div className="flex gap-2 border-t border-line px-5 py-4">
-              <button onClick={()=>setAddDay(null)} className="rounded-lg border border-line px-4 py-2 text-[12px] text-white/50">Annuler</button>
-              <button onClick={handleAddEvent} className="flex-1 rounded-lg bg-accent-cyan py-2 text-[12px] font-bold text-black">Planifier →</button>
+              <button onClick={() => { setAddDay(null); setAddMinia(null); setShowGaleriePicker(false); }}
+                className="rounded-lg border border-line px-4 py-2 text-[12px] text-white/50 hover:text-white transition-colors">
+                Annuler
+              </button>
+              <button onClick={handleAddEvent}
+                className="flex-1 rounded-lg bg-accent-cyan py-2 text-[12px] font-bold text-black hover:opacity-90 transition-opacity">
+                Planifier →
+              </button>
             </div>
           </div>
         </div>

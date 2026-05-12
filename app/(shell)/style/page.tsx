@@ -30,7 +30,7 @@ const EXPRESSIONS: Array<{ id: PersonaData["expression"]; label: string; emoji: 
   { id:"challenge", label:"Défi",       emoji:"⚡" },
 ];
 
-type Tab = "studio"|"personas"|"kit"|"prompts"|"exemples";
+type Tab = "studio"|"personas"|"kit"|"exemples";
 
 /* ═══ PAGE ═══ */
 
@@ -38,7 +38,7 @@ function StylePageInner() {
   const params = useSearchParams();
   const router = useRouter();
   const rawTab = params.get("tab") || "studio";
-  const tab: Tab = ["studio","personas","kit","prompts","exemples"].includes(rawTab) ? rawTab as Tab : "studio";
+  const tab: Tab = ["studio","personas","kit","exemples"].includes(rawTab) ? rawTab as Tab : "studio";
   const setTab = (t: Tab) => router.replace(`/style?tab=${t}`, { scroll: false });
 
   const [personas, setPersonas] = useState<PersonaData[]>(INITIAL_PERSONAS);
@@ -58,7 +58,6 @@ function StylePageInner() {
             ["studio",   "Créer une miniature", null],
             ["personas", "Personas",   String(personas.length)],
             ["kit",      "Brand kit",  null],
-            ["prompts",  "Prompts",    "23"],
             ["exemples", "Exemples",   null],
           ] as Array<[Tab,string,string|null]>).map(([id,label,count]) => (
             <button
@@ -79,7 +78,6 @@ function StylePageInner() {
         {tab === "studio"   && <StudioLanding />}
         {tab === "personas" && <PersonasTab personas={personas} setPersonas={setPersonas} addOpen={addPersonaOpen} setAddOpen={setAddPersonaOpen} />}
         {tab === "kit"      && <BrandKit />}
-        {tab === "prompts"  && <PromptsGrid />}
         {tab === "exemples" && <ExemplesTab />}
       </div>
     </div>
@@ -118,18 +116,288 @@ function StudioLanding() {
   );
 }
 
-/* ═══ EXEMPLES TAB (placeholder) ═══ */
+/* ═══ EXEMPLES TAB ═══ */
+
+type ExempleItem = {
+  id: number;
+  url: string;
+  title: string;
+  tag: string;
+  addedAt: string;
+};
+
+const EXEMPLE_TAGS = ["Tous", "Face cam", "Vlog", "Cinématique", "Entertainment", "Podcast", "Autre"];
 
 function ExemplesTab() {
+  const [items, setItems]         = useState<ExempleItem[]>([]);
+  const [filter, setFilter]       = useState("Tous");
+  const [addOpen, setAddOpen]     = useState(false);
+  const [preview, setPreview]     = useState<ExempleItem | null>(null);
+  const [deleteId, setDeleteId]   = useState<number | null>(null);
+
+  const filtered = filter === "Tous" ? items : items.filter(i => i.tag === filter);
+
+  function handleAdd(item: Omit<ExempleItem, "id" | "addedAt">) {
+    setItems(p => [...p, { ...item, id: Date.now(), addedAt: "à l'instant" }]);
+    setAddOpen(false);
+    showToast("Exemple ajouté à ta bibliothèque !");
+  }
+
+  function handleDelete(id: number) {
+    setItems(p => p.filter(i => i.id !== id));
+    setDeleteId(null);
+    setPreview(null);
+    showToast("Exemple supprimé", "info");
+  }
+
   return (
-    <div className="mt-12 flex flex-col items-center justify-center gap-4 rounded-xl border border-dashed border-line bg-white/[0.01] py-20 px-6 text-center">
-      <div className="font-mono text-[10px] tracking-widest text-white/40">BIBLIOTHÈQUE</div>
-      <h2 className="font-display text-[36px] leading-tight">EXEMPLES DE RÉFÉRENCE</h2>
-      <p className="mx-auto max-w-md text-[14px] text-white/50">
-        Stocke des miniatures qui t&apos;inspirent. Elles seront disponibles dans le studio pour orienter la génération.
-      </p>
-      <div className="font-mono text-[10px] tracking-widest text-white/30">
-        BIENTÔT DISPONIBLE
+    <div className="mt-8">
+      {/* Header */}
+      <div className="mb-6 flex flex-wrap items-center justify-between gap-4">
+        <div>
+          <div className="font-mono text-[10px] tracking-widest text-white/40">{items.length} EXEMPLES DANS LA BIBLIOTHÈQUE</div>
+          <p className="mt-1 text-[13px] text-white/45">Stocke des miniatures qui t&apos;inspirent — elles orienteront la génération IA.</p>
+        </div>
+        <button
+          onClick={() => setAddOpen(true)}
+          className="inline-flex items-center gap-2 rounded-lg bg-accent-cyan px-4 py-2 text-[12px] font-bold text-black hover:opacity-90 transition-opacity"
+        >
+          <svg viewBox="0 0 16 16" className="h-3 w-3" fill="none">
+            <path d="M8 2V14M2 8H14" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
+          </svg>
+          Ajouter un exemple
+        </button>
+      </div>
+
+      {/* Filter tags */}
+      {items.length > 0 && (
+        <div className="mb-5 flex flex-wrap gap-2">
+          {EXEMPLE_TAGS.map(t => (
+            <button key={t} onClick={() => setFilter(t)}
+              className={`rounded-full px-3.5 py-1.5 text-[12px] font-medium transition-all ${
+                filter === t ? "bg-accent-cyan text-black" : "border border-line text-white/50 hover:text-white"
+              }`}>
+              {t}
+            </button>
+          ))}
+        </div>
+      )}
+
+      {/* Empty state */}
+      {items.length === 0 && (
+        <div
+          onClick={() => setAddOpen(true)}
+          className="flex cursor-pointer flex-col items-center justify-center gap-4 rounded-xl border border-dashed border-line bg-white/[0.01] px-6 py-20 text-center transition-colors hover:border-accent-cyan/40 hover:bg-accent-cyan/[0.02]"
+        >
+          <div className="flex h-14 w-14 items-center justify-center rounded-xl border border-line bg-white/[0.03] text-[24px]">🖼</div>
+          <div>
+            <div className="text-[15px] font-semibold text-white/80">Aucun exemple pour l&apos;instant</div>
+            <p className="mt-1 text-[13px] text-white/40">Clique ici ou sur &quot;Ajouter&quot; pour uploader ta première référence</p>
+          </div>
+        </div>
+      )}
+
+      {/* Grid */}
+      {filtered.length > 0 && (
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 xl:grid-cols-4">
+          {filtered.map(item => (
+            <div
+              key={item.id}
+              className="group relative overflow-hidden rounded-xl border border-line bg-ink-900 cursor-pointer transition-all hover:border-line-strong"
+              onClick={() => setPreview(item)}
+            >
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src={item.url} alt={item.title} className="aspect-video w-full object-cover" />
+
+              {/* Overlay on hover */}
+              <div className="absolute inset-0 flex items-end bg-gradient-to-t from-black/80 via-transparent to-transparent opacity-0 transition-opacity group-hover:opacity-100">
+                <div className="p-3 w-full flex items-end justify-between gap-2">
+                  <div className="min-w-0">
+                    <div className="truncate text-[12px] font-medium text-white">{item.title || "Sans titre"}</div>
+                    <div className="font-mono text-[9px] text-white/50">{item.tag}</div>
+                  </div>
+                  <button
+                    onClick={e => { e.stopPropagation(); setDeleteId(item.id); }}
+                    className="shrink-0 flex h-6 w-6 items-center justify-center rounded-md bg-black/60 text-white/60 hover:text-accent-danger text-[11px]"
+                  >
+                    ✕
+                  </button>
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {filtered.length === 0 && items.length > 0 && (
+        <div className="flex flex-col items-center gap-2 py-16 text-center">
+          <div className="text-[13px] text-white/40">Aucun exemple pour ce filtre</div>
+          <button onClick={() => setFilter("Tous")} className="text-[12px] text-accent-cyan hover:opacity-80">Voir tous</button>
+        </div>
+      )}
+
+      {/* Modale ajout */}
+      {addOpen && <ModaleAjoutExemple onClose={() => setAddOpen(false)} onAdd={handleAdd} />}
+
+      {/* Preview plein écran */}
+      {preview && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/90 p-4 backdrop-blur-sm"
+          onClick={() => setPreview(null)}>
+          <div className="relative w-full max-w-[860px]" onClick={e => e.stopPropagation()}>
+            <button onClick={() => setPreview(null)}
+              className="absolute -top-10 right-0 font-mono text-[11px] text-white/40 hover:text-white">
+              FERMER ✕
+            </button>
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src={preview.url} alt={preview.title} className="w-full rounded-xl shadow-2xl" />
+            <div className="mt-3 flex items-center justify-between">
+              <div>
+                <div className="text-[15px] font-semibold text-white">{preview.title || "Sans titre"}</div>
+                <div className="mt-0.5 font-mono text-[10px] text-white/40">{preview.tag} · {preview.addedAt}</div>
+              </div>
+              <button
+                onClick={() => setDeleteId(preview.id)}
+                className="rounded-lg border border-accent-danger/40 bg-accent-danger/[0.08] px-4 py-2 text-[12px] font-medium text-accent-danger hover:bg-accent-danger/[0.14] transition-colors"
+              >
+                Supprimer
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Popup suppression */}
+      {deleteId !== null && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/75 p-4 backdrop-blur-sm"
+          onClick={() => setDeleteId(null)}>
+          <div className="w-full max-w-[360px] overflow-hidden rounded-2xl border border-line bg-ink-950 shadow-2xl"
+            onClick={e => e.stopPropagation()}>
+            <div className="border-b border-line px-6 py-4">
+              <div className="font-mono text-[9px] tracking-widest text-accent-danger mb-1">SUPPRIMER L&apos;EXEMPLE</div>
+              <div className="text-[14px] text-white/80">Cette référence sera supprimée définitivement.</div>
+            </div>
+            <div className="flex gap-2 px-6 py-4">
+              <button onClick={() => setDeleteId(null)}
+                className="flex-1 rounded-lg border border-line py-2.5 text-[13px] text-white/60 hover:bg-white/[0.04] hover:text-white transition-colors">
+                Annuler
+              </button>
+              <button onClick={() => handleDelete(deleteId)}
+                className="flex-1 rounded-lg bg-accent-danger py-2.5 text-[13px] font-bold text-white hover:opacity-90 transition-opacity">
+                Supprimer
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+/* ─── Modale ajout exemple ─── */
+function ModaleAjoutExemple({ onClose, onAdd }: {
+  onClose: () => void;
+  onAdd: (item: { url: string; title: string; tag: string }) => void;
+}) {
+  const [url,      setUrl]      = useState<string | null>(null);
+  const [title,    setTitle]    = useState("");
+  const [tag,      setTag]      = useState("Autre");
+  const [dragging, setDragging] = useState(false);
+  const fileRef = useRef<HTMLInputElement>(null);
+
+  function handleFile(file: File) {
+    if (!file.type.startsWith("image/")) { showToast("Fichier non supporté — image uniquement", "error"); return; }
+    if (file.size > 8 * 1024 * 1024)    { showToast("Image trop lourde (max 8 Mo)", "error"); return; }
+    setUrl(URL.createObjectURL(file));
+  }
+
+  function handleDrop(e: React.DragEvent) {
+    e.preventDefault(); setDragging(false);
+    const file = e.dataTransfer.files[0];
+    if (file) handleFile(file);
+  }
+
+  function handleSave() {
+    if (!url) { showToast("Ajoute une image d'abord", "error"); return; }
+    onAdd({ url, title: title.trim(), tag });
+  }
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/75 p-4 backdrop-blur-sm"
+      onClick={e => e.target === e.currentTarget && onClose()}>
+      <div className="w-full max-w-[540px] overflow-hidden rounded-2xl border border-line bg-ink-950 shadow-2xl">
+
+        <div className="flex items-center justify-between border-b border-line px-6 py-4">
+          <div className="text-[14px] font-semibold">Ajouter un exemple de référence</div>
+          <button onClick={onClose} className="text-white/40 hover:text-white">✕</button>
+        </div>
+
+        <div className="p-6 space-y-5">
+          {/* Upload zone */}
+          {!url ? (
+            <div
+              onDragOver={e => { e.preventDefault(); setDragging(true); }}
+              onDragLeave={() => setDragging(false)}
+              onDrop={handleDrop}
+              onClick={() => fileRef.current?.click()}
+              className={`flex cursor-pointer flex-col items-center gap-3 rounded-xl border-2 border-dashed px-6 py-10 text-center transition-colors ${
+                dragging ? "border-accent-cyan/60 bg-accent-cyan/[0.04]" : "border-line bg-white/[0.01] hover:border-accent-cyan/40 hover:bg-white/[0.02]"
+              }`}
+            >
+              <div className="text-[32px] opacity-50">🖼</div>
+              <div>
+                <div className="text-[14px] font-medium text-white/70">Glisse une image ici ou clique</div>
+                <div className="mt-1 font-mono text-[10px] text-white/30">PNG · JPG · WEBP · max 8 Mo</div>
+              </div>
+              <input ref={fileRef} type="file" accept="image/png,image/jpeg,image/webp" className="hidden"
+                onChange={e => { const f = e.target.files?.[0]; if (f) handleFile(f); }} />
+            </div>
+          ) : (
+            <div className="relative overflow-hidden rounded-xl border border-line">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src={url} alt="Aperçu" className="w-full object-cover max-h-[220px]" />
+              <button
+                onClick={() => setUrl(null)}
+                className="absolute right-2 top-2 flex h-7 w-7 items-center justify-center rounded-full bg-black/70 text-white/70 hover:text-white text-[12px]"
+              >
+                ✕
+              </button>
+            </div>
+          )}
+
+          {/* Title */}
+          <div>
+            <div className="mb-2 font-mono text-[10px] tracking-widest text-white/40">TITRE / NOTE <span className="text-white/20">(optionnel)</span></div>
+            <input value={title} onChange={e => setTitle(e.target.value)}
+              placeholder="ex: Miniature Hormozi — chiffre + expression choc"
+              className="w-full rounded-xl border border-line bg-white/[0.03] px-4 py-3 text-[13px] text-white placeholder:text-white/20 outline-none focus:border-accent-cyan/50" />
+          </div>
+
+          {/* Tag */}
+          <div>
+            <div className="mb-2 font-mono text-[10px] tracking-widest text-white/40">FORMAT</div>
+            <div className="flex flex-wrap gap-2">
+              {EXEMPLE_TAGS.filter(t => t !== "Tous").map(t => (
+                <button key={t} onClick={() => setTag(t)}
+                  className={`rounded-full px-3 py-1.5 text-[12px] font-medium transition-all ${
+                    tag === t ? "bg-accent-cyan text-black" : "border border-line text-white/50 hover:text-white"
+                  }`}>
+                  {t}
+                </button>
+              ))}
+            </div>
+          </div>
+        </div>
+
+        <div className="flex gap-2 border-t border-line px-6 py-4">
+          <button onClick={onClose}
+            className="flex-1 rounded-lg border border-line py-2.5 text-[13px] text-white/60 hover:bg-white/[0.04] hover:text-white transition-colors">
+            Annuler
+          </button>
+          <button onClick={handleSave}
+            className="flex-1 rounded-lg bg-accent-cyan py-2.5 text-[13px] font-bold text-black hover:opacity-90 transition-opacity">
+            Ajouter →
+          </button>
+        </div>
       </div>
     </div>
   );
@@ -150,38 +418,44 @@ function PersonasTab({ personas, setPersonas, addOpen, setAddOpen }: {
   addOpen: boolean;
   setAddOpen: (v:boolean)=>void;
 }) {
-  const [deleteConfirm, setDeleteConfirm] = useState<number|null>(null);
+  const [deleteId,  setDeleteId]  = useState<number|null>(null);
+  const [editId,    setEditId]    = useState<number|null>(null);
+  const personaToDelete = personas.find(p => p.id === deleteId);
+  const personaToEdit   = personas.find(p => p.id === editId);
 
-  function handleDelete(id:number) {
-    if (deleteConfirm===id) {
-      setPersonas(personas.filter(p=>p.id!==id));
-      showToast("Persona supprimé","info"); setDeleteConfirm(null);
-    } else {
-      setDeleteConfirm(id);
-      setTimeout(()=>setDeleteConfirm(null),3000);
-    }
+  function handleDelete(id: number) {
+    setPersonas(personas.filter(p => p.id !== id));
+    setDeleteId(null);
+    showToast("Persona supprimé", "info");
   }
 
-  function handleSetPrimary(id:number) {
-    setPersonas(personas.map(p=>({...p,primary:p.id===id})));
+  function handleSetPrimary(id: number) {
+    setPersonas(personas.map(p => ({...p, primary: p.id === id})));
     showToast("Persona principal mis à jour !");
   }
 
-  function handleAdd(p:Omit<PersonaData,"id"|"usage"|"primary">) {
-    setPersonas([...personas,{...p,id:Date.now(),usage:0,primary:false}]);
+  function handleAdd(p: Omit<PersonaData,"id"|"usage"|"primary">) {
+    setPersonas([...personas, {...p, id: Date.now(), usage: 0, primary: false}]);
     setAddOpen(false);
     showToast(`Persona "${p.name}" créé !`);
+  }
+
+  function handleEdit(id: number, updated: Pick<PersonaData,"name"|"desc"|"expression"|"lighting">) {
+    setPersonas(personas.map(p => p.id === id ? {...p, ...updated} : p));
+    setEditId(null);
+    showToast("Persona mis à jour !");
   }
 
   return (
     <div className="mt-8">
       <div className="mb-6 flex items-center justify-between">
         <div className="font-mono text-[10px] tracking-widest text-white/40">{personas.length} PERSONAS DISPONIBLES</div>
-        <button onClick={()=>setAddOpen(true)} className="inline-flex items-center gap-2 rounded-lg bg-accent-cyan px-4 py-2 text-[12px] font-bold text-black hover:shadow-[0_0_20px_rgba(52,224,255,0.3)]">
+        <button onClick={() => setAddOpen(true)} className="inline-flex items-center gap-2 rounded-lg bg-accent-cyan px-4 py-2 text-[12px] font-bold text-black hover:shadow-[0_0_20px_rgba(52,224,255,0.3)]">
           <svg viewBox="0 0 16 16" className="h-3 w-3" fill="none"><path d="M8 2V14M2 8H14" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/></svg>
           Ajouter un persona
         </button>
       </div>
+
       <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 xl:grid-cols-4">
         {personas.map(p => (
           <article key={p.id} className="overflow-hidden rounded-xl border border-line bg-ink-900 transition-colors hover:border-line-strong">
@@ -190,19 +464,36 @@ function PersonasTab({ personas, setPersonas, addOpen, setAddOpen }: {
             </div>
             <div className="p-3">
               <div className="flex items-start justify-between gap-2">
-                <div className="text-[14px] font-semibold text-white/95">{p.name}</div>
+                <div>
+                  <div className="text-[14px] font-semibold text-white/95">{p.name}</div>
+                  {p.desc && <div className="mt-0.5 text-[11px] text-white/40">{p.desc}</div>}
+                </div>
                 {p.primary
-                  ? <span className="inline-flex shrink-0 items-center gap-1 rounded-full bg-accent-cyan/15 px-2 py-0.5 font-mono text-[8px] tracking-widest text-accent-cyan"><span className="h-1 w-1 rounded-full bg-accent-cyan"/>PRINCIPAL</span>
-                  : <button onClick={()=>handleSetPrimary(p.id)} className="rounded-full border border-line px-2 py-0.5 font-mono text-[8px] tracking-widest text-white/30 hover:text-accent-cyan hover:border-accent-cyan/40">SET</button>
+                  ? <span className="inline-flex shrink-0 items-center gap-1 rounded-full bg-accent-cyan/15 px-2 py-0.5 font-mono text-[8px] tracking-widest text-accent-cyan">
+                      <span className="h-1 w-1 rounded-full bg-accent-cyan"/>PRINCIPAL
+                    </span>
+                  : <button onClick={() => handleSetPrimary(p.id)}
+                      className="shrink-0 rounded-full border border-line px-2 py-0.5 font-mono text-[8px] tracking-widest text-white/30 hover:text-accent-cyan hover:border-accent-cyan/40 transition-colors">
+                      SET
+                    </button>
                 }
               </div>
-              <div className="mt-2 flex items-center justify-between border-t border-line pt-2 font-mono text-[9px] tracking-widest text-white/30">
-                <span>{p.usage}% usage</span>
-                <div className="flex gap-2">
-                  <button onClick={()=>showToast("Éditeur persona bientôt disponible","info")} className="hover:text-white">Éditer</button>
+
+              <div className="mt-2 flex items-center justify-between border-t border-line pt-2">
+                <span className="font-mono text-[9px] tracking-widest text-white/30">{p.usage}% usage</span>
+                <div className="flex items-center gap-1">
+                  <button
+                    onClick={() => setEditId(p.id)}
+                    className="rounded-md border border-line bg-white/[0.02] px-2.5 py-1 font-mono text-[8px] tracking-widest text-white/45 hover:border-line-strong hover:text-white transition-colors"
+                  >
+                    ÉDITER
+                  </button>
                   {!p.primary && (
-                    <button onClick={()=>handleDelete(p.id)} className={`transition-colors ${deleteConfirm===p.id?"text-accent-danger":"hover:text-accent-danger"}`}>
-                      {deleteConfirm===p.id?"CONFIRMER ?":"✕"}
+                    <button
+                      onClick={() => setDeleteId(p.id)}
+                      className="rounded-md border border-line bg-white/[0.02] px-2.5 py-1 font-mono text-[8px] tracking-widest text-white/35 hover:border-accent-danger/40 hover:text-accent-danger transition-colors"
+                    >
+                      ✕
                     </button>
                   )}
                 </div>
@@ -211,7 +502,155 @@ function PersonasTab({ personas, setPersonas, addOpen, setAddOpen }: {
           </article>
         ))}
       </div>
-      {addOpen && <ModaleAjoutPersona onClose={()=>setAddOpen(false)} onAdd={handleAdd} />}
+
+      {/* Modale ajout */}
+      {addOpen && <ModaleAjoutPersona onClose={() => setAddOpen(false)} onAdd={handleAdd} />}
+
+      {/* Modale édition */}
+      {editId !== null && personaToEdit && (
+        <ModaleEditerPersona
+          persona={personaToEdit}
+          onClose={() => setEditId(null)}
+          onSave={(updated) => handleEdit(editId, updated)}
+        />
+      )}
+
+      {/* Popup suppression */}
+      {deleteId !== null && personaToDelete && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/75 p-4 backdrop-blur-sm"
+          onClick={() => setDeleteId(null)}>
+          <div className="w-full max-w-[380px] overflow-hidden rounded-2xl border border-line bg-ink-950 shadow-2xl"
+            onClick={e => e.stopPropagation()}>
+            <div className="border-b border-line px-6 py-4">
+              <div className="font-mono text-[9px] tracking-widest text-accent-danger mb-1">SUPPRIMER LE PERSONA</div>
+              <div className="text-[15px] font-semibold">{personaToDelete.name}</div>
+            </div>
+            <div className="px-6 py-5">
+              <div className="mb-4 overflow-hidden rounded-xl border border-line bg-ink-800">
+                <PersonaBust expression={personaToDelete.expression} lighting={personaToDelete.lighting} shirt="#0a0a0a" className="h-[160px] w-full" />
+              </div>
+              <p className="text-[13px] text-white/50 leading-relaxed">
+                Ce persona sera définitivement supprimé. Les miniatures existantes ne seront pas affectées.
+              </p>
+            </div>
+            <div className="flex gap-2 border-t border-line px-6 py-4">
+              <button
+                onClick={() => setDeleteId(null)}
+                className="flex-1 rounded-lg border border-line bg-white/[0.02] py-2.5 text-[13px] font-medium text-white/60 hover:bg-white/[0.05] hover:text-white transition-colors"
+              >
+                Annuler
+              </button>
+              <button
+                onClick={() => handleDelete(deleteId)}
+                className="flex-1 rounded-lg bg-accent-danger py-2.5 text-[13px] font-bold text-white hover:opacity-90 transition-opacity"
+              >
+                Supprimer
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+/* ─── Modale édition persona ─── */
+function ModaleEditerPersona({ persona, onClose, onSave }: {
+  persona: PersonaData;
+  onClose: () => void;
+  onSave: (updated: Pick<PersonaData,"name"|"desc"|"expression"|"lighting">) => void;
+}) {
+  const [name,       setName]       = useState(persona.name);
+  const [desc,       setDesc]       = useState(persona.desc);
+  const [expression, setExpression] = useState(persona.expression);
+  const [lighting,   setLighting]   = useState(persona.lighting);
+
+  const LIGHTINGS: Array<{id: PersonaData["lighting"]; label: string; color: string}> = [
+    {id:"neutral", label:"Neutre", color:"#888"},
+    {id:"warm",    label:"Chaud",  color:"#FF9A3C"},
+    {id:"cool",    label:"Cool",   color:"#34E0FF"},
+    {id:"red",     label:"Rouge",  color:"#EF4444"},
+    {id:"yellow",  label:"Jaune",  color:"#E8FF3A"},
+  ];
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/75 p-4 backdrop-blur-sm"
+      onClick={e => e.target === e.currentTarget && onClose()}>
+      <div className="flex w-full max-w-[640px] overflow-hidden rounded-2xl border border-line bg-ink-950 shadow-2xl">
+
+        {/* Preview live */}
+        <div className="hidden w-[220px] shrink-0 flex-col bg-ink-900 sm:flex">
+          <div className="border-b border-line px-4 py-3">
+            <span className="font-mono text-[9px] tracking-widest text-white/35">APERÇU LIVE</span>
+          </div>
+          <div className="flex-1">
+            <PersonaBust expression={expression} lighting={lighting} shirt="#0a0a0a" className="h-full w-full" />
+          </div>
+          <div className="border-t border-line px-4 py-3 text-center">
+            <div className="text-[13px] font-semibold text-white/80">{name || "—"}</div>
+            {desc && <div className="mt-0.5 text-[11px] text-white/35">{desc}</div>}
+          </div>
+        </div>
+
+        {/* Form */}
+        <div className="flex flex-1 flex-col">
+          <div className="flex items-center justify-between border-b border-line px-6 py-4">
+            <div className="text-[14px] font-semibold">Éditer le persona</div>
+            <button onClick={onClose} className="text-white/40 hover:text-white">✕</button>
+          </div>
+
+          <div className="flex-1 overflow-y-auto p-6 space-y-5">
+            <div>
+              <div className="mb-2 font-mono text-[10px] tracking-widest text-white/40">NOM</div>
+              <input autoFocus value={name} onChange={e => setName(e.target.value)}
+                className="w-full rounded-xl border border-line bg-white/[0.03] px-4 py-3 text-[14px] text-white outline-none focus:border-accent-cyan/50" />
+            </div>
+
+            <div>
+              <div className="mb-2 font-mono text-[10px] tracking-widest text-white/40">DESCRIPTION</div>
+              <input value={desc} onChange={e => setDesc(e.target.value)}
+                placeholder="32 ans · Brun · Crew-neck"
+                className="w-full rounded-xl border border-line bg-white/[0.03] px-4 py-3 text-[14px] text-white placeholder:text-white/20 outline-none focus:border-accent-cyan/50" />
+            </div>
+
+            <div>
+              <div className="mb-3 font-mono text-[10px] tracking-widest text-white/40">EXPRESSION</div>
+              <div className="flex flex-wrap gap-2">
+                {EXPRESSIONS.map(e => (
+                  <button key={e.id} onClick={() => setExpression(e.id)}
+                    className={`flex items-center gap-1.5 rounded-full px-3 py-1.5 text-[12px] transition-all ${expression === e.id ? "bg-accent-cyan text-black font-bold" : "border border-line text-white/50 hover:text-white"}`}>
+                    <span>{e.emoji}</span>{e.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div>
+              <div className="mb-3 font-mono text-[10px] tracking-widest text-white/40">ÉCLAIRAGE</div>
+              <div className="flex flex-wrap gap-2">
+                {LIGHTINGS.map(l => (
+                  <button key={l.id} onClick={() => setLighting(l.id)}
+                    className={`flex items-center gap-2 rounded-full px-3 py-1.5 text-[12px] transition-all ${lighting === l.id ? "bg-accent-cyan text-black font-bold" : "border border-line text-white/50 hover:text-white"}`}>
+                    <span className="h-2 w-2 rounded-full" style={{ background: l.color }} />{l.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+          </div>
+
+          <div className="flex gap-2 border-t border-line px-6 py-4">
+            <button onClick={onClose}
+              className="flex-1 rounded-lg border border-line bg-white/[0.02] py-2.5 text-[12px] font-medium text-white/60 hover:bg-white/[0.05] hover:text-white transition-colors">
+              Annuler
+            </button>
+            <button
+              onClick={() => { if(!name.trim()){ showToast("Le nom ne peut pas être vide","error"); return; } onSave({name, desc, expression, lighting}); }}
+              className="flex-1 rounded-lg bg-accent-cyan py-2.5 text-[12px] font-bold text-black hover:opacity-90 transition-opacity">
+              Enregistrer
+            </button>
+          </div>
+        </div>
+      </div>
     </div>
   );
 }

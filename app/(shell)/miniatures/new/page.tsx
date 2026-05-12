@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { STYLES, PERSONAS } from "@/lib/mocks/styles-personas";
+import { getExamplesForFormat } from "@/lib/style-examples";
 
 type Step = 1 | 2 | 3 | 4 | 5 | 6;
 type Status = "form" | "generating" | "result" | "error";
@@ -24,6 +25,8 @@ export default function NewMiniaturePage() {
   const [referenceImage, setReferenceImage] = useState<File | null>(null);
   const [inspirationImages, setInspirationImages] = useState<File[]>([]);
   const [styleId, setStyleId] = useState<string | null>(null);
+  const [contentFormat, setContentFormat] = useState<string | null>(null);
+  const [primaryColor, setPrimaryColor] = useState("#34E0FF");
   const [personaId, setPersonaId] = useState<string | null>(null);
 
   const [imageUrl, setImageUrl] = useState<string | null>(null);
@@ -32,12 +35,12 @@ export default function NewMiniaturePage() {
   function canProceed(s: Step): boolean {
     switch (s) {
       case 1:
-        return brief.trim().length > 0;
+        return brief.trim().split(/\s+/).filter(Boolean).length >= 30;
       case 2:
       case 3:
         return true;
       case 4:
-        return styleId !== null;
+        return contentFormat !== null && styleId !== null;
       case 5:
         return personaId !== null;
       case 6:
@@ -67,6 +70,8 @@ export default function NewMiniaturePage() {
       const formData = new FormData();
       formData.append("prompt", brief);
       formData.append("styleId", styleId);
+      formData.append("contentFormat", contentFormat ?? "");
+      formData.append("primaryColor", primaryColor);
       formData.append("personaId", personaId);
       if (referenceImage) {
         formData.append("referenceImage", referenceImage);
@@ -96,6 +101,8 @@ export default function NewMiniaturePage() {
     setReferenceImage(null);
     setInspirationImages([]);
     setStyleId(null);
+    setContentFormat(null);
+    setPrimaryColor("#34E0FF");
     setPersonaId(null);
     setImageUrl(null);
     setError(null);
@@ -131,7 +138,13 @@ export default function NewMiniaturePage() {
                 setInspirationImages={setInspirationImages}
               />
             )}
-            {step === 4 && <Step4Style styleId={styleId} setStyleId={setStyleId} />}
+            {step === 4 && (
+              <Step4Style
+                styleId={styleId} setStyleId={setStyleId}
+                contentFormat={contentFormat} setContentFormat={setContentFormat}
+                primaryColor={primaryColor} setPrimaryColor={setPrimaryColor}
+              />
+            )}
             {step === 5 && (
               <Step5Persona personaId={personaId} setPersonaId={setPersonaId} />
             )}
@@ -142,6 +155,8 @@ export default function NewMiniaturePage() {
                 inspirationImages={inspirationImages}
                 style={selectedStyle}
                 persona={selectedPersona}
+                contentFormat={contentFormat}
+                primaryColor={primaryColor}
               />
             )}
           </div>
@@ -231,9 +246,17 @@ function Step1Description({
         placeholder="Ex : Vidéo intitulée 'Pourquoi j'ai quitté mon CDI pour entreprendre'. Ton sérieux et inspirant. Message principal : la sécurité du CDI est une illusion. Je veux un visage marquant et un gros texte en accroche."
         className="mt-2 block w-full rounded-md border border-line bg-white/[0.02] px-4 py-3 text-[14px] text-white placeholder-white/30 focus:border-accent-cyan focus:outline-none"
       />
-      <div className="mt-2 font-mono text-[11px] text-white/40">
-        {brief.length} caractères · obligatoire
-      </div>
+      {(() => {
+        const words = brief.trim().split(/\s+/).filter(Boolean).length;
+        const ok = words >= 30;
+        return (
+          <div className={`mt-2 flex items-center gap-2 font-mono text-[11px] ${ok ? "text-accent-success" : "text-white/40"}`}>
+            <span>{words} / 30 mots minimum</span>
+            {ok && <span>✓</span>}
+            {!ok && words > 0 && <span className="text-white/30">— encore {30 - words} mot{30 - words > 1 ? "s" : ""}</span>}
+          </div>
+        );
+      })()}
     </div>
   );
 }
@@ -369,50 +392,304 @@ function Step3Inspirations({
   );
 }
 
-/* ---------------- Step 4 — Style ---------------- */
+/* ---------------- Step 4 — Style (format + couleur) ---------------- */
+
+// ── Colour utilities ──────────────────────────────────────────────────────────
+
+function hexToHsl(hex: string): [number, number, number] {
+  const r = parseInt(hex.slice(1, 3), 16) / 255;
+  const g = parseInt(hex.slice(3, 5), 16) / 255;
+  const b = parseInt(hex.slice(5, 7), 16) / 255;
+  const max = Math.max(r, g, b), min = Math.min(r, g, b);
+  let h = 0, s = 0;
+  const l = (max + min) / 2;
+  if (max !== min) {
+    const d = max - min;
+    s = l > 0.5 ? d / (2 - max - min) : d / (max + min);
+    switch (max) {
+      case r: h = ((g - b) / d + (g < b ? 6 : 0)) / 6; break;
+      case g: h = ((b - r) / d + 2) / 6; break;
+      case b: h = ((r - g) / d + 4) / 6; break;
+    }
+  }
+  return [Math.round(h * 360), Math.round(s * 100), Math.round(l * 100)];
+}
+
+function hslToHex(h: number, s: number, l: number): string {
+  const hn = h / 360, sn = s / 100, ln = l / 100;
+  const hue2rgb = (p: number, q: number, t: number) => {
+    let tt = t < 0 ? t + 1 : t > 1 ? t - 1 : t;
+    if (tt < 1/6) return p + (q - p) * 6 * tt;
+    if (tt < 1/2) return q;
+    if (tt < 2/3) return p + (q - p) * (2/3 - tt) * 6;
+    return p;
+  };
+  if (s === 0) {
+    const v = Math.round(ln * 255).toString(16).padStart(2, "0");
+    return `#${v}${v}${v}`;
+  }
+  const q = ln < 0.5 ? ln * (1 + sn) : ln + sn - ln * sn;
+  const p = 2 * ln - q;
+  const r = Math.round(hue2rgb(p, q, hn + 1/3) * 255).toString(16).padStart(2, "0");
+  const g = Math.round(hue2rgb(p, q, hn) * 255).toString(16).padStart(2, "0");
+  const b = Math.round(hue2rgb(p, q, hn - 1/3) * 255).toString(16).padStart(2, "0");
+  return `#${r}${g}${b}`;
+}
+
+function generatePalette(primary: string): string[] {
+  const [h, s, l] = hexToHsl(primary);
+  const bg      = hslToHex(h, Math.min(s, 25), 8);
+  const accent  = hslToHex((h + 150) % 360, Math.min(s + 10, 90), Math.min(l + 10, 65));
+  const surface = hslToHex(h, Math.min(s, 20), 14);
+  return [bg, primary, accent, surface];
+}
+
+// ── Format types ─────────────────────────────────────────────────────────────
+
+type ContentFormat = {
+  id: string;
+  label: string;
+  emoji: string;
+  desc: string;
+  defaultStyle: string;   // maps to STYLES id
+  defaultColor: string;
+};
+
+const CONTENT_FORMATS: ContentFormat[] = [
+  { id:"facecam",      label:"Face cam",       emoji:"🎙", desc:"Plan serré sur le visage. Expression forte, réaction, authenticité.",             defaultStyle:"truth-bomb",        defaultColor:"#FFFFFF" },
+  { id:"vlog",         label:"Vlog",            emoji:"📸", desc:"Atmosphère, lieu de vie, coulisses. Lifestyle authentique et spontané.",          defaultStyle:"soft-productivity", defaultColor:"#E8C547" },
+  { id:"cinematique",  label:"Cinématique",     emoji:"🎬", desc:"Large, dramatique, haute production. Impression blockbuster.",                    defaultStyle:"red-conviction",    defaultColor:"#FF2D2D" },
+  { id:"entertainment",label:"Entertainment",   emoji:"⚡", desc:"Énergie maximale, action, surprise. Émotion visible en 0,3 seconde.",             defaultStyle:"wake-up-call",      defaultColor:"#FF2D2D" },
+  { id:"podcast",      label:"Podcast / Talk",  emoji:"🎤", desc:"Interview, connexion, profondeur. Format conversation deux personnes.",           defaultStyle:"truth-bomb",        defaultColor:"#FFFFFF" },
+];
+
+// ── Component ─────────────────────────────────────────────────────────────────
 
 function Step4Style({
-  styleId,
-  setStyleId,
+  styleId, setStyleId,
+  contentFormat, setContentFormat,
+  primaryColor, setPrimaryColor,
 }: {
-  styleId: string | null;
-  setStyleId: (v: string) => void;
+  styleId: string | null; setStyleId: (v: string) => void;
+  contentFormat: string | null; setContentFormat: (v: string) => void;
+  primaryColor: string; setPrimaryColor: (v: string) => void;
 }) {
+  const palette = generatePalette(primaryColor);
+  const [previewFormat, setPreviewFormat] = useState<string | null>(null);
+
+  const PRESET_COLORS = [
+    { hex: "#34E0FF", label: "Cyan" },
+    { hex: "#F5E632", label: "Jaune" },
+    { hex: "#FF2D2D", label: "Rouge" },
+    { hex: "#FFFFFF", label: "Blanc" },
+    { hex: "#7BB17A", label: "Vert" },
+    { hex: "#FF7A1A", label: "Orange" },
+    { hex: "#B066FF", label: "Violet" },
+    { hex: "#FF66A3", label: "Rose" },
+  ];
+
+  function selectFormat(fmt: ContentFormat) {
+    setContentFormat(fmt.id);
+    setStyleId(fmt.defaultStyle);
+    setPrimaryColor(fmt.defaultColor);
+  }
+
   return (
-    <div>
-      <h2 className="font-display text-[28px] leading-tight">Choisis un style</h2>
-      <p className="mt-2 text-[14px] text-white/60">
-        Le style guide les codes visuels (couleurs, typo, composition).
-      </p>
-      <div className="mt-6 grid grid-cols-1 gap-3 md:grid-cols-2 lg:grid-cols-3">
-        {STYLES.map((s) => {
-          const isActive = s.id === styleId;
-          return (
+    <div className="space-y-10">
+
+      {/* ── Section 1 : Format ── */}
+      <div>
+        <h2 className="font-display text-[28px] leading-tight">01 · Format de contenu</h2>
+        <p className="mt-2 text-[14px] text-white/55">
+          Quel type de vidéo ? Clique pour sélectionner — survole pour voir des exemples.
+        </p>
+        <div className="mt-5 grid grid-cols-2 gap-2.5 sm:grid-cols-4">
+          {CONTENT_FORMATS.map((fmt) => {
+            const isActive = contentFormat === fmt.id;
+            const examples = getExamplesForFormat(fmt.id);
+            const isPreviewing = previewFormat === fmt.id;
+
+            return (
+              <div key={fmt.id} className="relative">
+                <button
+                  onClick={() => selectFormat(fmt)}
+                  onMouseEnter={() => examples.length > 0 && setPreviewFormat(fmt.id)}
+                  onMouseLeave={() => setPreviewFormat(null)}
+                  className={`relative flex w-full flex-col gap-2 overflow-hidden rounded-xl border text-left transition-all ${
+                    isActive
+                      ? "border-accent-cyan/70 bg-accent-cyan/[0.06] shadow-[0_0_0_1px_rgba(52,224,255,0.35)]"
+                      : "border-line bg-white/[0.02] hover:border-white/20 hover:bg-white/[0.03]"
+                  }`}
+                >
+                  {/* Exemples en fond au hover */}
+                  {examples.length > 0 && isPreviewing && (
+                    <div className="absolute inset-0 z-0">
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img
+                        src={examples[0]}
+                        alt={fmt.label}
+                        className="h-full w-full object-cover opacity-30"
+                      />
+                      <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/40 to-transparent" />
+                    </div>
+                  )}
+
+                  <div className="relative z-10 p-4">
+                    <div className="flex items-start justify-between">
+                      <span className="text-[24px] leading-none">{fmt.emoji}</span>
+                      {examples.length > 0 && (
+                        <span className="font-mono text-[8px] tracking-widest text-white/25">
+                          {examples.length} ex.
+                        </span>
+                      )}
+                    </div>
+                    <span className={`mt-2 block text-[14px] font-semibold ${isActive ? "text-accent-cyan" : "text-white"}`}>
+                      {fmt.label}
+                    </span>
+                    <span className="mt-1 block text-[11px] leading-snug text-white/45">{fmt.desc}</span>
+                  </div>
+
+                  {isActive && (
+                    <span className="absolute right-2.5 top-2.5 z-20 flex h-5 w-5 items-center justify-center rounded-full bg-accent-cyan text-[9px] font-bold text-black">✓</span>
+                  )}
+                </button>
+
+                {/* Strip d'exemples sous la card au hover */}
+                {examples.length > 1 && isPreviewing && (
+                  <div className="absolute left-0 right-0 top-full z-30 mt-1 flex gap-1 overflow-x-auto rounded-xl border border-line bg-ink-900/95 p-2 backdrop-blur-sm">
+                    {examples.map((src, i) => (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img
+                        key={i}
+                        src={src}
+                        alt={`Exemple ${i + 1}`}
+                        className="h-14 w-24 shrink-0 rounded-md object-cover ring-1 ring-white/10"
+                      />
+                    ))}
+                  </div>
+                )}
+              </div>
+            );
+          })}
+        </div>
+
+        {/* Exemples du format sélectionné */}
+        {contentFormat && getExamplesForFormat(contentFormat).length > 0 && (
+          <div className="mt-4">
+            <div className="mb-2 font-mono text-[10px] tracking-widest text-white/35">
+              EXEMPLES — {CONTENT_FORMATS.find(f => f.id === contentFormat)?.label?.toUpperCase()}
+            </div>
+            <div className="flex gap-2 overflow-x-auto pb-1">
+              {getExamplesForFormat(contentFormat).map((src, i) => (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img
+                  key={i}
+                  src={src}
+                  alt={`Exemple ${i + 1}`}
+                  className="h-20 w-36 shrink-0 rounded-xl object-cover ring-1 ring-white/10 transition hover:ring-accent-cyan/40"
+                />
+              ))}
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* ── Section 2 : Couleur primaire ── */}
+      <div>
+        <h2 className="font-display text-[28px] leading-tight">02 · Couleur primaire</h2>
+        <p className="mt-2 text-[14px] text-white/55">
+          Choisis une couleur — la palette complète se génère automatiquement.
+        </p>
+
+        <div className="mt-5 flex flex-col gap-6 lg:flex-row lg:items-start">
+
+          {/* Presets rapides */}
+          <div className="flex-1">
+            <div className="mb-3 font-mono text-[10px] tracking-widest text-white/35">PRESETS RAPIDES</div>
+            <div className="flex flex-wrap gap-2">
+              {PRESET_COLORS.map((c) => (
+                <button
+                  key={c.hex}
+                  onClick={() => setPrimaryColor(c.hex)}
+                  title={c.label}
+                  className={`flex h-9 w-9 items-center justify-center rounded-lg border-2 transition-all hover:scale-110 ${
+                    primaryColor.toLowerCase() === c.hex.toLowerCase()
+                      ? "border-white scale-110 shadow-lg"
+                      : "border-transparent"
+                  }`}
+                  style={{ background: c.hex }}
+                >
+                  {primaryColor.toLowerCase() === c.hex.toLowerCase() && (
+                    <span className="text-[11px] font-bold" style={{ color: c.hex === "#FFFFFF" ? "#000" : "#000", mixBlendMode: "difference" }}>✓</span>
+                  )}
+                </button>
+              ))}
+            </div>
+
+            {/* Custom color picker */}
+            <div className="mt-4">
+              <div className="mb-2 font-mono text-[10px] tracking-widest text-white/35">COULEUR PERSONNALISÉE</div>
+              <label className="flex cursor-pointer items-center gap-3 rounded-xl border border-line bg-white/[0.02] px-4 py-3 transition hover:border-accent-cyan/40">
+                <input
+                  type="color"
+                  value={primaryColor}
+                  onChange={(e) => setPrimaryColor(e.target.value)}
+                  className="h-8 w-8 cursor-pointer rounded border-0 bg-transparent p-0 outline-none"
+                />
+                <span className="font-mono text-[13px] uppercase text-white/70">{primaryColor}</span>
+                <span className="ml-auto text-[11px] text-white/35">Cliquer pour choisir</span>
+              </label>
+            </div>
+          </div>
+
+          {/* Palette générée */}
+          <div className="lg:w-[320px]">
+            <div className="mb-3 font-mono text-[10px] tracking-widest text-white/35">PALETTE GÉNÉRÉE AUTOMATIQUEMENT</div>
+            <div className="overflow-hidden rounded-xl border border-line">
+              {[
+                { color: palette[0], role: "Fond",     hex: palette[0] },
+                { color: palette[1], role: "Primaire", hex: palette[1] },
+                { color: palette[2], role: "Accent",   hex: palette[2] },
+                { color: palette[3], role: "Surface",  hex: palette[3] },
+              ].map((row, i) => (
+                <div key={i} className="flex items-center gap-3 border-b border-line last:border-b-0 px-4 py-2.5">
+                  <div className="h-8 w-8 shrink-0 rounded-md ring-1 ring-white/10" style={{ background: row.color }} />
+                  <span className="flex-1 text-[12px] text-white/70">{row.role}</span>
+                  <span className="font-mono text-[11px] text-white/35">{row.hex.toUpperCase()}</span>
+                </div>
+              ))}
+            </div>
+
+            {/* Live preview mini-thumb */}
+            <div className="mt-3 overflow-hidden rounded-xl ring-1 ring-white/10" style={{ background: palette[0] }}>
+              <div className="flex aspect-video items-center justify-center gap-3 p-4">
+                <div className="font-display text-[28px] leading-none" style={{ color: palette[1] }}>50K€</div>
+                <div className="font-display text-[20px] leading-none" style={{ color: palette[2] }}>→</div>
+              </div>
+            </div>
+            <div className="mt-1 text-center font-mono text-[9px] text-white/25">APERÇU RAPIDE</div>
+          </div>
+        </div>
+
+        {/* Style de base choisi automatiquement */}
+        {styleId && (
+          <div className="mt-5 flex items-center gap-3 rounded-xl border border-line bg-white/[0.02] px-4 py-3">
+            <span className="font-mono text-[10px] tracking-widest text-white/35">STYLE DE BASE</span>
+            <span className="text-[13px] font-medium text-white/80">
+              {STYLES.find(s => s.id === styleId)?.name}
+            </span>
+            <span className="text-[12px] text-white/40">—</span>
+            <span className="text-[12px] text-white/45">
+              {STYLES.find(s => s.id === styleId)?.shortDescription}
+            </span>
             <button
-              key={s.id}
-              onClick={() => setStyleId(s.id)}
-              className={`group rounded-xl border p-4 text-left transition ${
-                isActive
-                  ? "border-accent-cyan/70 bg-accent-cyan/[0.04] shadow-[0_0_0_1px_rgba(52,224,255,0.4)]"
-                  : "border-line bg-white/[0.02] hover:border-white/20"
-              }`}
+              onClick={() => {}}
+              className="ml-auto font-mono text-[9px] text-accent-cyan hover:opacity-80"
             >
-              <div className="flex gap-1">
-                {s.palette.map((color, i) => (
-                  <div
-                    key={i}
-                    className="h-10 flex-1 rounded"
-                    style={{ background: color }}
-                  />
-                ))}
-              </div>
-              <div className="mt-3 text-[15px] font-semibold">{s.name}</div>
-              <div className="mt-1 text-[12px] leading-relaxed text-white/55">
-                {s.shortDescription}
-              </div>
+              CHANGER ▾
             </button>
-          );
-        })}
+          </div>
+        )}
       </div>
     </div>
   );
@@ -463,17 +740,12 @@ function Step5Persona({
 /* ---------------- Step 6 — Recap ---------------- */
 
 function Step6Recap({
-  brief,
-  referenceImage,
-  inspirationImages,
-  style,
-  persona,
+  brief, referenceImage, inspirationImages, style, persona, contentFormat, primaryColor,
 }: {
-  brief: string;
-  referenceImage: File | null;
-  inspirationImages: File[];
+  brief: string; referenceImage: File | null; inspirationImages: File[];
   style: { name: string; shortDescription: string } | null;
   persona: { name: string; shortDescription: string } | null;
+  contentFormat: string | null; primaryColor: string;
 }) {
   return (
     <div>
@@ -503,6 +775,18 @@ function Step6Recap({
           ) : (
             <span className="text-[12px] italic text-white/40">aucune</span>
           )}
+        </RecapRow>
+        <RecapRow label="Format">
+          <div className="flex items-center gap-2 text-[13px] text-white/85">
+            <span>{CONTENT_FORMATS.find(f => f.id === contentFormat)?.emoji}</span>
+            <span>{CONTENT_FORMATS.find(f => f.id === contentFormat)?.label ?? "—"}</span>
+          </div>
+        </RecapRow>
+        <RecapRow label="Couleur">
+          <div className="flex items-center gap-2">
+            <div className="h-4 w-4 rounded ring-1 ring-white/20" style={{ background: primaryColor }} />
+            <span className="font-mono text-[12px] text-white/70">{primaryColor.toUpperCase()}</span>
+          </div>
         </RecapRow>
         <RecapRow label="Style">
           <div className="text-[13px] text-white/85">
