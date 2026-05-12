@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { showToast } from "@/app/_components/ui/toast";
 
 export default function ParametresPage() {
   return (
@@ -57,7 +58,10 @@ export default function ParametresPage() {
           <Member name="Sarah Dubois" email="sarah@studio.fr" role="Editor" initials="SD" color="bg-accent-yellow" />
           <Member name="Léo Martin" email="leo@studio.fr" role="Viewer" initials="LM" color="bg-accent-orange" />
           <div className="px-5 py-3">
-            <button className="rounded-md border border-line bg-white/[0.02] px-3 py-2 font-mono text-[10px] tracking-widest text-white/70 hover:bg-white/[0.05]">
+            <button
+              onClick={() => showToast("Invitation envoyée !", "success")}
+              className="rounded-md border border-line bg-white/[0.02] px-3 py-2 font-mono text-[10px] tracking-widest text-white/70 hover:bg-white/[0.05]"
+            >
               + INVITER UN COLLABORATEUR
             </button>
           </div>
@@ -71,18 +75,22 @@ export default function ParametresPage() {
                 ZIP · MINIATURES + PROMPTS + ANALYTICS
               </div>
             </div>
-            <button className="rounded-md border border-line bg-white/[0.02] px-3 py-2 text-[12px] text-white/70 hover:bg-white/[0.05]">
+            <button
+              onClick={() => { showToast("Export en cours…", "info"); setTimeout(() => showToast("miniapulse_data.zip téléchargé !"), 2000); }}
+              className="rounded-md border border-line bg-white/[0.02] px-3 py-2 text-[12px] text-white/70 hover:bg-white/[0.05]"
+            >
               Exporter
             </button>
           </div>
           <div className="flex items-center justify-between gap-4 border-t border-line px-5 py-4">
             <div>
               <div className="text-[14px] text-white/95">Supprimer mon compte</div>
-              <div className="mt-0.5 font-mono text-[11px] tracking-widest text-accent-danger/80">
-                IRRÉVERSIBLE · 7 JOURS DE GRÂCE
-              </div>
+              <div className="mt-0.5 font-mono text-[11px] tracking-widest text-accent-danger/80">IRRÉVERSIBLE · 7 JOURS DE GRÂCE</div>
             </div>
-            <button className="rounded-md border border-accent-danger/40 bg-accent-danger/10 px-3 py-2 text-[12px] text-accent-danger hover:bg-accent-danger/15">
+            <button
+              onClick={() => showToast("Envoie un email à support@miniapulse.app pour supprimer ton compte", "error")}
+              className="rounded-md border border-accent-danger/40 bg-accent-danger/10 px-3 py-2 text-[12px] text-accent-danger hover:bg-accent-danger/15"
+            >
               Supprimer
             </button>
           </div>

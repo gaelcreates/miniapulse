@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { STYLE_META, type StyleId } from "@/app/_components/thumbs";
+import { showToast } from "@/app/_components/ui/toast";
 
 type Range = "7" | "30" | "90" | "180";
 
@@ -39,7 +40,10 @@ export default function AnalyticsPage() {
           </p>
         </div>
         <div className="flex items-center gap-2">
-          <button className="inline-flex items-center gap-2 rounded-md border border-line bg-white/[0.02] px-4 py-2.5 text-[13px] text-white/85 hover:bg-white/[0.05]">
+          <button
+            onClick={() => { showToast("Export CSV en cours…", "info"); setTimeout(() => showToast("analytics_export.csv téléchargé !"), 1800); }}
+            className="inline-flex items-center gap-2 rounded-md border border-line bg-white/[0.02] px-4 py-2.5 text-[13px] text-white/85 hover:bg-white/[0.05]"
+          >
             <svg viewBox="0 0 16 16" className="h-3.5 w-3.5" fill="none">
               <path d="M8 2v9M4 8l4 4 4-4M3 14h10" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round"/>
             </svg>
