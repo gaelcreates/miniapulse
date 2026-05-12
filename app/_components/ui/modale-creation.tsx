@@ -143,8 +143,6 @@ export function ModaleCreation() {
     1: "Sujet", 2: "Hook", 3: "Style", 4: "Persona", 5: "Génération",
   };
 
-  const selectedPersona = PERSONAS.find(p => p.id === personaId);
-
   if (!open) return null;
 
   return (
@@ -202,7 +200,7 @@ export function ModaleCreation() {
                     placeholder="ex: Comment j'ai signé mes 3 premiers clients en coaching sans audience ni publicité"
                     className="w-full resize-none rounded-xl border border-line bg-white/[0.03] px-4 py-3 text-[14px] text-white placeholder:text-white/20 outline-none focus:border-accent-cyan/50 focus:bg-white/[0.04] leading-relaxed"
                   />
-                  <div className="mt-1.5 font-mono text-[10px] text-white/30">Décris le contenu réel de ta vidéo — plus c'est précis, mieux le hook sera généré</div>
+                  <div className="mt-1.5 font-mono text-[10px] text-white/30">Décris le contenu réel de ta vidéo — plus c&apos;est précis, mieux le hook sera généré</div>
                 </div>
 
                 {topic.trim().length > 8 && (

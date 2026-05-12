@@ -23,7 +23,6 @@ const STYLES: Array<{
   { id: "wakeup", name: "Stratège Alerte",    niche: "Stratégie · Entrepreneuriat",  categories: ["Sport","Entertainment","Influenceur"], keywords: ["perdre","gagner","stratégie","alerte","urgence","erreur","risque","faillite"], ctr: "+44%" },
 ];
 
-const CREATOR_TYPES = ["Tous","Infopreneur","Influenceur","Entertainment","Sport","SaaS / Tech","Coaching","Mindset"];
 
 const HOOK_DB: Array<{ keys: string[]; hooks: string[] }> = [
   { keys: ["argent","€","revenu","money","income"],             hooks: ["50K€ EN 90 JOURS",   "DE 0 À 10K€ / MOIS",   "CE QUI M'A TOUT CHANGÉ"] },
@@ -82,14 +81,6 @@ type CreationStep = 1|2|3|4|5;
 
 type Tab = "studio"|"personas"|"kit"|"prompts";
 
-/* ─── custom style type ─── */
-type CustomStyle = {
-  id: number; name: string; desc: string; domains: string[];
-  bg: string; accent: string; secondary: string; textColor: string;
-  composition: "chiffre"|"barre"|"kpi"|"conviction";
-  hook: string; uses: number;
-};
-
 /* ═══ PAGE ═══ */
 
 function StylePageInner() {
@@ -113,8 +104,6 @@ function StylePageInner() {
   // Personas state
   const [personas, setPersonas] = useState<PersonaData[]>(INITIAL_PERSONAS);
   const [addPersonaOpen, setAddPersonaOpen] = useState(false);
-  const [customStyles, setCustomStyles] = useState<CustomStyle[]>([]);
-  const [newStyleOpen, setNewStyleOpen] = useState(false);
 
   function resetCreation() {
     setStep(1); setTopic(""); setHook(""); setStyle("yellow");
@@ -190,7 +179,7 @@ function StylePageInner() {
         {tab === "studio"   && <CreationStudio step={step} setStep={setStep} topic={topic} setTopic={setTopic} hook={hook} setHook={setHook} hookSugg={hookSugg} style={style} setStyle={setStyle} personaId={personaId} setPersonaId={setPersonaId} expression={expression} setExpression={setExpression} generating={generating} setGenerating={setGenerating} done={done} setDone={setDone} goNext={goNext} handleGenerate={handleGenerate} handleSave={handleSave} resetCreation={resetCreation} personas={personas} stepMeta={stepMeta} />}
         {tab === "personas" && <PersonasTab personas={personas} setPersonas={setPersonas} addOpen={addPersonaOpen} setAddOpen={setAddPersonaOpen} />}
         {tab === "kit"      && <BrandKit />}
-        {tab === "prompts"  && <PromptsGrid customStyles={customStyles} />}
+        {tab === "prompts"  && <PromptsGrid />}
       </div>
     </div>
   );
@@ -272,7 +261,7 @@ function CreationStudio({
                   placeholder="ex: Comment j'ai signé mes 3 premiers clients coaching sans audience"
                   className="w-full resize-none rounded-lg border border-line bg-white/[0.03] px-4 py-3 text-[13px] text-white placeholder:text-white/20 outline-none focus:border-accent-cyan/50 leading-relaxed"
                 />
-                <div className="mt-1 font-mono text-[9px] text-white/25">Plus c'est précis, meilleur sera le hook généré</div>
+                <div className="mt-1 font-mono text-[9px] text-white/25">Plus c&apos;est précis, meilleur sera le hook généré</div>
               </div>
 
               {topic.trim().length > 8 && (
@@ -671,7 +660,7 @@ function ModaleAjoutPersona({ onClose, onAdd }: {
                       <input ref={el=>{fileRefs.current[slot.id]=el;}} type="file" accept="image/*" className="hidden" onChange={e=>{const f=e.target.files?.[0];if(f)setPhotos(p=>({...p,[slot.id]:URL.createObjectURL(f)}));}}/>
                       <button onClick={()=>fileRefs.current[slot.id]?.click()} className={`group relative aspect-[3/4] w-full overflow-hidden rounded-xl border-2 transition-all ${has?"border-accent-success":"border-dashed border-line hover:border-accent-cyan/50"}`}>
                         {has
-                          ? <><img src={photos[slot.id]!} alt={slot.label} className="h-full w-full object-cover"/><div className="absolute inset-0 flex items-center justify-center bg-black/50 opacity-0 group-hover:opacity-100 text-[11px] text-white">Changer</div><div className="absolute right-2 top-2 flex h-5 w-5 items-center justify-center rounded-full bg-accent-success text-[9px] font-bold text-black">✓</div></>
+                          ? <>{/* eslint-disable-next-line @next/next/no-img-element */}<img src={photos[slot.id]!} alt={slot.label} className="h-full w-full object-cover"/><div className="absolute inset-0 flex items-center justify-center bg-black/50 opacity-0 group-hover:opacity-100 text-[11px] text-white">Changer</div><div className="absolute right-2 top-2 flex h-5 w-5 items-center justify-center rounded-full bg-accent-success text-[9px] font-bold text-black">✓</div></>
                           : <div className="flex h-full flex-col items-center justify-center gap-2 p-2"><span className="text-2xl opacity-30">{slot.icon}</span><span className="font-mono text-[8px] tracking-widest text-white/30 text-center">UPLOADER</span></div>
                         }
                       </button>
@@ -774,7 +763,7 @@ function BrandKit() {
 }
 
 /* ═══ PROMPTS ═══ */
-function PromptsGrid({ customStyles }: { customStyles: CustomStyle[] }) {
+function PromptsGrid() {
   const prompts = [
     {title:"Coaching · résultat chiffré",    uses:28,ctr:"+38%",style:"yellow" as StyleId},
     {title:"SaaS · MRR + dashboard flou",    uses:19,ctr:"+29%",style:"cyan"   as StyleId},

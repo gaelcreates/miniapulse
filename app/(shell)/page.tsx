@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, Suspense } from "react";
 import { useSearchParams } from "next/navigation";
 import { Thumb, STYLE_META, type StyleId } from "@/app/_components/thumbs";
 import { openModaleCreation } from "@/app/_components/ui/modale-creation";
@@ -27,7 +27,7 @@ const ALL_THUMBS: Array<{
 
 const NICHES = ["Tous", "COACHING", "SAAS", "MINDSET", "PRODUCTIVITÉ", "VENTES", "STRATÉGIE"];
 
-export default function AccueilPage() {
+function AccueilInner() {
   const [tab, setTab] = useState<Tab>("recentes");
   const [filterOpen, setFilterOpen] = useState(false);
   const [nicheFilter, setNicheFilter] = useState("Tous");
@@ -173,6 +173,14 @@ export default function AccueilPage() {
         )}
       </section>
     </div>
+  );
+}
+
+export default function AccueilPage() {
+  return (
+    <Suspense fallback={<div className="mx-auto max-w-[1400px] animate-pulse" />}>
+      <AccueilInner />
+    </Suspense>
   );
 }
 

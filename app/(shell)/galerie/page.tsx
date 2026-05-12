@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useMemo } from "react";
-import { Thumb, STYLE_META, type StyleId } from "@/app/_components/thumbs";
+import { Thumb, type StyleId } from "@/app/_components/thumbs";
 import { showToast } from "@/app/_components/ui/toast";
 
 const STYLES: StyleId[] = ["yellow","cyan","truth","soft","red","wakeup"];
