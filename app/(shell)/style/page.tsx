@@ -1,58 +1,11 @@
 "use client";
 
 import { Suspense, useState, useRef } from "react";
+import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { PersonaBust } from "@/app/_components/persona";
-import { Thumb, STYLE_META, type StyleId } from "@/app/_components/thumbs";
+import { STYLE_META, type StyleId } from "@/app/_components/thumbs";
 import { showToast } from "@/app/_components/ui/toast";
-
-/* ─── styles catalogue ─── */
-const STYLES: Array<{
-  id: StyleId;
-  name: string;
-  niche: string;
-  categories: string[];
-  keywords: string[];
-  ctr: string;
-}> = [
-  { id: "yellow", name: "Infopreneur Impact", niche: "Infopreneur · Coaching",      categories: ["Infopreneur","Coaching"],           keywords: ["argent","€","revenu","income","signer","client","vendre","money","k€","mrr"], ctr: "+62%" },
-  { id: "cyan",   name: "SaaS Solo",          niche: "SaaS · Tech · Build",          categories: ["SaaS / Tech","Infopreneur"],        keywords: ["saas","mrr","app","tech","code","startup","produit","software","build","outil"], ctr: "+48%" },
-  { id: "truth",  name: "Mindset Vérité",     niche: "Mindset · Influenceur",        categories: ["Influenceur","Coaching","Mindset"], keywords: ["vérité","truth","mensonge","personne","secret","réalité","mindset","erreur"], ctr: "+71%" },
-  { id: "soft",   name: "Lifestyle Pro",      niche: "Lifestyle · Influenceur",      categories: ["Influenceur","Entertainment"],     keywords: ["productiv","routine","matin","habitude","quotidien","journée","temps","heure"], ctr: "+39%" },
-  { id: "red",    name: "Coach Conviction",   niche: "Coach · Sport · Ventes",       categories: ["Sport","Coaching","Infopreneur"],  keywords: ["coach","sport","vendre","ventes","closer","conviction","perf","résultat"], ctr: "+57%" },
-  { id: "wakeup", name: "Stratège Alerte",    niche: "Stratégie · Entrepreneuriat",  categories: ["Sport","Entertainment","Influenceur"], keywords: ["perdre","gagner","stratégie","alerte","urgence","erreur","risque","faillite"], ctr: "+44%" },
-];
-
-
-const HOOK_DB: Array<{ keys: string[]; hooks: string[] }> = [
-  { keys: ["argent","€","revenu","money","income"],             hooks: ["50K€ EN 90 JOURS",   "DE 0 À 10K€ / MOIS",   "CE QUI M'A TOUT CHANGÉ"] },
-  { keys: ["saas","mrr","app","software","build"],              hooks: ["DE 0 À 10K MRR",      "MON SAAS EN SOLO",     "LE PRODUIT QUI CHANGE TOUT"] },
-  { keys: ["productiv","routine","matin","habitude","heure"],   hooks: ["4H PAR JOUR. POINT.", "MA ROUTINE EXACTE",    "PLUS EN MOINS DE TEMPS"] },
-  { keys: ["ventes","closer","script","client","signer"],       hooks: ["JE CLOSE 80% DES APPELS","MON SCRIPT EXACT", "LA MÉTHODE QUI VEND"] },
-  { keys: ["sport","training","fitness","muscl"],               hooks: ["MA TRANSFORMATION",   "LE VRAI TRAVAIL",      "CE QUE TU NE FAIS PAS"] },
-  { keys: ["vérité","truth","mensonge","secret","personne"],    hooks: ["CE QUE PERSONNE NE DIT","LA VÉRITÉ DIFFICILE","ARRÊTE DE TE MENTIR"] },
-  { keys: ["stratég","business","entrepreneuriat","croissance"],hooks: ["MON PLAN EXACT",       "L'ERREUR FATALE",     "CE QUE J'AI APPRIS"] },
-];
-
-function suggestHooks(topic: string): string[] {
-  if (!topic.trim()) return ["MON EXPÉRIENCE RÉELLE", "CE QUE PERSONNE NE DIT", "LA MÉTHODE QUI MARCHE"];
-  const t = topic.toLowerCase();
-  for (const row of HOOK_DB) {
-    if (row.keys.some(k => t.includes(k))) return row.hooks;
-  }
-  const words = topic.trim().toUpperCase().split(" ").slice(0, 3).join(" ");
-  return [`MON EXPÉRIENCE : ${words}`, `LA VÉRITÉ SUR ${words}`, `COMMENT J'AI RÉUSSI`];
-}
-
-function getRecommended(topic: string, hook: string): StyleId {
-  const text = (topic + " " + hook).toLowerCase();
-  let best: StyleId = "yellow"; let bestScore = 0;
-  for (const s of STYLES) {
-    const score = s.keywords.filter(k => text.includes(k)).length;
-    if (score > bestScore) { bestScore = score; best = s.id; }
-  }
-  return best;
-}
 
 /* ─── persona types ─── */
 type PersonaData = {
@@ -77,9 +30,7 @@ const EXPRESSIONS: Array<{ id: PersonaData["expression"]; label: string; emoji: 
   { id:"challenge", label:"Défi",       emoji:"⚡" },
 ];
 
-type CreationStep = 1|2|3|4|5;
-
-type Tab = "studio"|"personas"|"kit"|"prompts";
+type Tab = "studio"|"personas"|"kit"|"prompts"|"exemples";
 
 /* ═══ PAGE ═══ */
 
@@ -87,69 +38,17 @@ function StylePageInner() {
   const params = useSearchParams();
   const router = useRouter();
   const rawTab = params.get("tab") || "studio";
-  const tab: Tab = ["studio","personas","kit","prompts"].includes(rawTab) ? rawTab as Tab : "studio";
+  const tab: Tab = ["studio","personas","kit","prompts","exemples"].includes(rawTab) ? rawTab as Tab : "studio";
   const setTab = (t: Tab) => router.replace(`/style?tab=${t}`, { scroll: false });
 
-  // Creation state
-  const [step, setStep] = useState<CreationStep>(1);
-  const [topic, setTopic] = useState("");
-  const [hook, setHook] = useState("");
-  const [hookSugg, setHookSugg] = useState<string[]>([]);
-  const [style, setStyle] = useState<StyleId>("yellow");
-  const [personaId, setPersonaId] = useState<number|null>(null);
-  const [expression, setExpression] = useState<PersonaData["expression"]>("intense");
-  const [generating, setGenerating] = useState(false);
-  const [done, setDone] = useState(false);
-
-  // Personas state
   const [personas, setPersonas] = useState<PersonaData[]>(INITIAL_PERSONAS);
   const [addPersonaOpen, setAddPersonaOpen] = useState(false);
 
-  function resetCreation() {
-    setStep(1); setTopic(""); setHook(""); setStyle("yellow");
-    setPersonaId(null); setExpression("intense");
-    setGenerating(false); setDone(false);
-  }
-
-  function goNext() {
-    if (step === 1) {
-      if (!topic.trim()) { showToast("Décris le sujet de ta vidéo", "error"); return; }
-      const sugg = suggestHooks(topic);
-      setHookSugg(sugg);
-      if (!hook) { setHook(sugg[0]); }
-      setStyle(getRecommended(topic, hook || sugg[0]));
-    }
-    if (step === 2 && !hook.trim()) { showToast("Écris le hook de ta miniature", "error"); return; }
-    setStep(s => Math.min(s+1,5) as CreationStep);
-  }
-
-  function handleGenerate() {
-    setStep(5); setGenerating(true);
-    setTimeout(() => { setGenerating(false); setDone(true); }, 2400);
-  }
-
-  function handleSave() {
-    showToast("Miniature enregistrée dans ta galerie !");
-    resetCreation();
-    router.push("/");
-  }
-
-  const stepMeta: Record<CreationStep,{label:string;hint:string}> = {
-    1:{ label:"Sujet",    hint:"De quoi parle ta vidéo ?" },
-    2:{ label:"Hook",     hint:"Le texte visible sur la miniature" },
-    3:{ label:"Style",    hint:"Le code visuel" },
-    4:{ label:"Persona",  hint:"Qui apparaît ?" },
-    5:{ label:"Générer",  hint:"Ton résultat" },
-  };
-
   return (
     <div className="mx-auto max-w-[1400px]">
-      {/* Page header */}
-      <div className="mb-8 flex items-end justify-between">
-        <div>
-          <h1 className="font-display text-[64px] leading-[0.92] tracking-tight sm:text-[80px]">STUDIO</h1>
-          <p className="mt-2 text-[14px] text-white/50">Crée, gère tes styles et personas.</p>
-        </div>
+      <div className="mb-6">
+        <h1 className="font-display text-[64px] leading-[0.92] tracking-tight sm:text-[80px]">STUDIO</h1>
+        <p className="mt-2 text-[14px] text-white/50">Crée, gère tes styles et personas.</p>
       </div>
 
       {/* Tabs */}
@@ -160,6 +59,7 @@ function StylePageInner() {
             ["personas", "Personas",   String(personas.length)],
             ["kit",      "Brand kit",  null],
             ["prompts",  "Prompts",    "23"],
+            ["exemples", "Exemples",   null],
           ] as Array<[Tab,string,string|null]>).map(([id,label,count]) => (
             <button
               key={id}
@@ -176,10 +76,11 @@ function StylePageInner() {
       </div>
 
       <div className="mt-0">
-        {tab === "studio"   && <CreationStudio step={step} setStep={setStep} topic={topic} setTopic={setTopic} hook={hook} setHook={setHook} hookSugg={hookSugg} style={style} setStyle={setStyle} personaId={personaId} setPersonaId={setPersonaId} expression={expression} setExpression={setExpression} generating={generating} setGenerating={setGenerating} done={done} setDone={setDone} goNext={goNext} handleGenerate={handleGenerate} handleSave={handleSave} resetCreation={resetCreation} personas={personas} stepMeta={stepMeta} />}
+        {tab === "studio"   && <StudioLanding />}
         {tab === "personas" && <PersonasTab personas={personas} setPersonas={setPersonas} addOpen={addPersonaOpen} setAddOpen={setAddPersonaOpen} />}
         {tab === "kit"      && <BrandKit />}
         {tab === "prompts"  && <PromptsGrid />}
+        {tab === "exemples" && <ExemplesTab />}
       </div>
     </div>
   );
@@ -189,331 +90,46 @@ export default function StylePage() {
   return <Suspense fallback={<div />}><StylePageInner /></Suspense>;
 }
 
-/* ═══ CREATION STUDIO (Tab "studio") ═══ */
+/* ═══ STUDIO LANDING (Tab "studio") ═══ */
 
-function CreationStudio({
-  step, setStep, topic, setTopic, hook, setHook, hookSugg,
-  style, setStyle, personaId, setPersonaId, expression, setExpression,
-  generating, setGenerating, done, setDone, goNext, handleGenerate, handleSave, resetCreation,
-  personas, stepMeta,
-}: {
-  step: CreationStep; setStep: (s:CreationStep)=>void;
-  topic: string; setTopic: (v:string)=>void;
-  hook: string; setHook: (v:string)=>void;
-  hookSugg: string[];
-  style: StyleId; setStyle: (v:StyleId)=>void;
-  personaId: number|null; setPersonaId: (v:number|null)=>void;
-  expression: PersonaData["expression"]; setExpression: (v:PersonaData["expression"])=>void;
-  generating: boolean; setGenerating: (v:boolean)=>void;
-  done: boolean; setDone: (v:boolean)=>void;
-  goNext: ()=>void; handleGenerate: ()=>void; handleSave: ()=>void; resetCreation: ()=>void;
-  personas: PersonaData[];
-  stepMeta: Record<CreationStep,{label:string;hint:string}>;
-}) {
+function StudioLanding() {
   return (
-    <div className="flex h-[calc(100vh-240px)] min-h-[560px] gap-0 overflow-hidden border border-line bg-ink-950">
-
-      {/* ─── LEFT: wizard ─── */}
-      <div className="flex w-[400px] shrink-0 flex-col border-r border-line">
-
-        {/* Step indicator */}
-        <div className="border-b border-line px-6 py-4">
-          <div className="flex items-center gap-0">
-            {([1,2,3,4,5] as CreationStep[]).map((s,i) => (
-              <div key={s} className="flex items-center">
-                <button
-                  onClick={() => s < step && setStep(s)}
-                  className={`flex items-center gap-1.5 ${s < step ? "cursor-pointer" : "cursor-default"}`}
-                >
-                  <div className={`flex h-6 w-6 items-center justify-center rounded-full text-[10px] font-bold transition-all ${
-                    s < step  ? "bg-accent-success/20 text-accent-success" :
-                    s === step ? "bg-accent-cyan text-black" :
-                                "bg-white/[0.06] text-white/30"
-                  }`}>
-                    {s < step ? "✓" : s}
-                  </div>
-                  <span className={`font-mono text-[9px] tracking-widest ${s===step ? "text-white" : "text-white/25"}`}>
-                    {stepMeta[s].label.toUpperCase()}
-                  </span>
-                </button>
-                {i < 4 && <span className="mx-2 text-white/15 text-[10px]">›</span>}
-              </div>
-            ))}
-          </div>
-          {step < 5 && (
-            <div className="mt-2 text-[12px] text-white/40">{stepMeta[step].hint}</div>
-          )}
-        </div>
-
-        {/* Form */}
-        <div className="flex-1 overflow-y-auto px-6 py-5">
-
-          {/* STEP 1 — Sujet */}
-          {step === 1 && (
-            <div className="space-y-5">
-              <div>
-                <div className="mb-2 font-mono text-[10px] tracking-[0.18em] text-white/40">DE QUOI PARLE CETTE VIDÉO ?</div>
-                <textarea
-                  autoFocus
-                  value={topic}
-                  onChange={e => setTopic(e.target.value)}
-                  rows={3}
-                  placeholder="ex: Comment j'ai signé mes 3 premiers clients coaching sans audience"
-                  className="w-full resize-none rounded-lg border border-line bg-white/[0.03] px-4 py-3 text-[13px] text-white placeholder:text-white/20 outline-none focus:border-accent-cyan/50 leading-relaxed"
-                />
-                <div className="mt-1 font-mono text-[9px] text-white/25">Plus c&apos;est précis, meilleur sera le hook généré</div>
-              </div>
-
-              {topic.trim().length > 8 && (
-                <div>
-                  <div className="mb-2.5 flex items-center gap-2">
-                    <div className="font-mono text-[10px] tracking-[0.18em] text-white/40">HOOKS SUGGÉRÉS</div>
-                    <span className="rounded bg-accent-cyan/15 px-1.5 py-0.5 font-mono text-[8px] tracking-widest text-accent-cyan">IA</span>
-                  </div>
-                  <div className="space-y-2">
-                    {suggestHooks(topic).map(h => (
-                      <button
-                        key={h}
-                        onClick={() => setHook(h)}
-                        className={`flex w-full items-center justify-between rounded-lg border px-4 py-3 text-left transition-all ${
-                          hook === h ? "border-accent-cyan/60 bg-accent-cyan/[0.06]" : "border-line bg-white/[0.02] hover:border-line-strong"
-                        }`}
-                      >
-                        <span className="font-display text-[14px] tracking-tight text-white/90">{h}</span>
-                        {hook === h
-                          ? <span className="font-mono text-[8px] text-accent-cyan">✓</span>
-                          : <span className="font-mono text-[8px] text-white/25">CHOISIR</span>}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              )}
-            </div>
-          )}
-
-          {/* STEP 2 — Hook */}
-          {step === 2 && (
-            <div className="space-y-4">
-              <div>
-                <div className="mb-2 font-mono text-[10px] tracking-[0.18em] text-white/40">TON HOOK</div>
-                <input
-                  autoFocus
-                  value={hook}
-                  onChange={e => setHook(e.target.value)}
-                  placeholder="Max 5-7 mots, MAJUSCULES"
-                  className="w-full rounded-lg border border-line bg-white/[0.03] px-4 py-3 font-display text-[20px] tracking-tight text-white placeholder:text-white/20 outline-none focus:border-accent-cyan/50"
-                />
-                <div className={`mt-1 font-mono text-[9px] ${hook.split(" ").filter(Boolean).length > 7 ? "text-accent-danger" : "text-white/25"}`}>
-                  {hook.split(" ").filter(Boolean).length} / 7 mots recommandés
-                </div>
-              </div>
-              <div>
-                <div className="mb-2 font-mono text-[10px] tracking-[0.18em] text-white/40">VARIANTES</div>
-                {hookSugg.map(h => (
-                  <button
-                    key={h}
-                    onClick={() => setHook(h)}
-                    className={`mb-2 flex w-full items-center justify-between rounded-lg border px-4 py-2.5 text-left transition-all ${
-                      hook === h ? "border-accent-cyan/60 bg-accent-cyan/[0.06]" : "border-line bg-white/[0.02] hover:border-line-strong"
-                    }`}
-                  >
-                    <span className="font-display text-[13px] tracking-tight text-white/85">{h}</span>
-                    {hook === h ? <span className="font-mono text-[8px] text-accent-cyan">ACTIF</span> : <span className="font-mono text-[8px] text-white/25">UTILISER</span>}
-                  </button>
-                ))}
-              </div>
-            </div>
-          )}
-
-          {/* STEP 3 — Style */}
-          {step === 3 && (
-            <div>
-              <div className="mb-3 font-mono text-[10px] tracking-[0.18em] text-white/40">STYLE VISUEL</div>
-              <div className="space-y-2">
-                {STYLES.map(s => {
-                  const isRec = s.id === getRecommended(topic, hook);
-                  const isSel = style === s.id;
-                  return (
-                    <button
-                      key={s.id}
-                      onClick={() => setStyle(s.id)}
-                      className={`flex w-full items-center gap-3 rounded-lg border p-2.5 text-left transition-all ${
-                        isSel ? "border-accent-cyan/70 bg-accent-cyan/[0.05]" : "border-line bg-white/[0.02] hover:border-line-strong"
-                      }`}
-                    >
-                      <div className="w-[88px] shrink-0 overflow-hidden rounded ring-1 ring-white/10">
-                        <Thumb id={s.id} hook={hook} />
-                      </div>
-                      <div className="min-w-0 flex-1">
-                        <div className="flex flex-wrap items-center gap-1.5">
-                          <span className="font-semibold text-[12px] text-white/95">{s.name}</span>
-                          {isRec && <span className="rounded bg-accent-yellow/20 px-1.5 py-0.5 font-mono text-[7px] tracking-widest text-accent-yellow">⚡ RECO</span>}
-                          {isSel && <span className="rounded bg-accent-cyan/20 px-1.5 py-0.5 font-mono text-[7px] tracking-widest text-accent-cyan">✓</span>}
-                        </div>
-                        <div className="mt-0.5 font-mono text-[8px] tracking-widest text-white/30">{s.niche.toUpperCase()}</div>
-                        <div className="mt-0.5 font-mono text-[8px] text-accent-success">{s.ctr} CTR</div>
-                      </div>
-                    </button>
-                  );
-                })}
-              </div>
-            </div>
-          )}
-
-          {/* STEP 4 — Persona */}
-          {step === 4 && (
-            <div className="space-y-5">
-              <div>
-                <div className="mb-3 font-mono text-[10px] tracking-[0.18em] text-white/40">QUI APPARAÎT ?</div>
-                <div className="grid grid-cols-2 gap-2">
-                  <button
-                    onClick={() => setPersonaId(null)}
-                    className={`flex flex-col items-center gap-1.5 rounded-lg border py-3 transition-all ${personaId===null ? "border-accent-cyan/60 bg-accent-cyan/[0.05]" : "border-line bg-white/[0.02] hover:border-line-strong"}`}
-                  >
-                    <div className="flex h-9 w-9 items-center justify-center rounded-full border border-line text-white/30 text-[16px]">○</div>
-                    <span className="font-mono text-[9px] tracking-widest text-white/40">SANS PERSONA</span>
-                    {personaId===null && <span className="font-mono text-[8px] text-accent-cyan">✓</span>}
-                  </button>
-                  {personas.map(p => (
-                    <button
-                      key={p.id}
-                      onClick={() => { setPersonaId(p.id); setExpression(p.expression); }}
-                      className={`flex flex-col items-center gap-1.5 rounded-lg border py-3 transition-all ${personaId===p.id ? "border-accent-cyan/60 bg-accent-cyan/[0.05]" : "border-line bg-white/[0.02] hover:border-line-strong"}`}
-                    >
-                      <div className="h-10 w-10 overflow-hidden rounded-full bg-ink-800">
-                        <PersonaBust expression={p.expression} lighting={p.lighting} shirt="#0a0a0a" className="h-full w-full" />
-                      </div>
-                      <span className="text-[12px] font-semibold text-white/80">{p.name}</span>
-                      {p.primary && <span className="font-mono text-[7px] text-accent-cyan tracking-widest">PRINCIPAL</span>}
-                      {personaId===p.id && <span className="font-mono text-[8px] text-accent-cyan">✓</span>}
-                    </button>
-                  ))}
-                </div>
-              </div>
-              {personaId !== null && (
-                <div>
-                  <div className="mb-2 font-mono text-[10px] tracking-[0.18em] text-white/40">EXPRESSION</div>
-                  <div className="flex flex-wrap gap-2">
-                    {EXPRESSIONS.map(e => (
-                      <button
-                        key={e.id}
-                        onClick={() => setExpression(e.id)}
-                        className={`flex items-center gap-1.5 rounded-full px-3 py-1.5 text-[12px] transition-all ${expression===e.id ? "bg-accent-cyan text-black font-semibold" : "border border-line text-white/50 hover:text-white"}`}
-                      >
-                        <span>{e.emoji}</span>{e.label}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              )}
-            </div>
-          )}
-
-          {/* STEP 5 — Génération */}
-          {step === 5 && (
-            <div className="flex flex-col items-center gap-5 py-6">
-              {generating && (
-                <>
-                  <div className="relative h-14 w-14">
-                    <div className="absolute inset-0 animate-spin rounded-full border-2 border-accent-cyan/20 border-t-accent-cyan" />
-                    <div className="absolute inset-3 animate-pulse rounded-full bg-accent-cyan/10" />
-                  </div>
-                  <div className="text-center">
-                    <div className="text-[14px] font-semibold">Génération en cours…</div>
-                    <div className="mt-1 font-mono text-[10px] tracking-widest text-white/35">MODÈLE IA EN TRAVAIL</div>
-                  </div>
-                  <div className="w-full space-y-2 rounded-lg border border-line bg-white/[0.02] p-4 text-[12px]">
-                    {[["STYLE", STYLES.find(s=>s.id===style)?.name??""],[" HOOK",hook],["PERSONA",personaId ? personas.find(p=>p.id===personaId)?.name??"":"Aucun"]].map(([k,v]) => (
-                      <div key={k} className="flex justify-between">
-                        <span className="font-mono text-[9px] tracking-widest text-white/30">{k}</span>
-                        <span className="text-white/60">{v}</span>
-                      </div>
-                    ))}
-                  </div>
-                </>
-              )}
-              {done && (
-                <>
-                  <div className="flex items-center gap-2 text-[12px] text-accent-success"><span>✓</span> Miniature générée</div>
-                  <button
-                    onClick={() => { setDone(false); setGenerating(true); setTimeout(()=>{setGenerating(false);setDone(true);},1800); }}
-                    className="text-[11px] text-white/35 hover:text-white"
-                  >
-                    ↺ Régénérer une variante
-                  </button>
-                </>
-              )}
-            </div>
-          )}
-        </div>
-
-        {/* Footer */}
-        <div className="flex items-center justify-between border-t border-line px-6 py-4">
-          <button
-            onClick={step===1 ? resetCreation : ()=>setStep((step-1) as CreationStep)}
-            className="rounded-lg border border-line bg-white/[0.02] px-4 py-2 text-[12px] text-white/55 hover:bg-white/[0.05] hover:text-white"
-          >
-            {step===1 ? "Réinitialiser" : "← Retour"}
-          </button>
-
-          {step < 4 && (
-            <button onClick={goNext} className="rounded-lg bg-accent-cyan px-5 py-2 text-[12px] font-bold text-black hover:shadow-[0_0_20px_rgba(52,224,255,0.3)]">
-              Continuer →
-            </button>
-          )}
-          {step===4 && (
-            <button onClick={handleGenerate} className="rounded-lg bg-accent-cyan px-5 py-2 text-[12px] font-bold text-black hover:shadow-[0_0_20px_rgba(52,224,255,0.3)]">
-              Générer ✦
-            </button>
-          )}
-          {step===5 && done && (
-            <button onClick={handleSave} className="rounded-lg bg-accent-success px-5 py-2 text-[12px] font-bold text-black">
-              Enregistrer ✓
-            </button>
-          )}
-        </div>
+    <div className="mt-12 flex flex-col items-center justify-center gap-8 rounded-xl border border-dashed border-line bg-white/[0.01] py-20 px-6 text-center">
+      <div className="space-y-2">
+        <div className="font-mono text-[10px] tracking-widest text-accent-cyan">CRÉATION DE MINIATURE</div>
+        <h2 className="font-display text-[48px] leading-tight">PRÊT À CRÉER ?</h2>
+        <p className="mx-auto max-w-md text-[14px] text-white/55">
+          Lance le parcours guidé : brief, image à intégrer, inspirations, style, persona — puis génération IA.
+        </p>
       </div>
+      <Link
+        href="/miniatures/new"
+        className="inline-flex items-center gap-2 rounded-md bg-accent-cyan px-6 py-3 text-[14px] font-bold text-black hover:shadow-[0_8px_28px_-8px_rgba(52,224,255,0.55)]"
+      >
+        <svg viewBox="0 0 16 16" className="h-3.5 w-3.5" fill="none">
+          <path d="M8 2V14M2 8H14" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
+        </svg>
+        Lancer le studio
+      </Link>
+      <div className="font-mono text-[10px] tracking-widest text-white/30">
+        ~ 30 SECONDES PAR MINIATURE · GPT-IMAGE-2
+      </div>
+    </div>
+  );
+}
 
-      {/* ─── RIGHT: live preview ─── */}
-      <div className="flex flex-1 flex-col bg-ink-900">
-        <div className="border-b border-line px-5 py-3">
-          <span className="font-mono text-[10px] tracking-widest text-white/30">APERÇU EN DIRECT</span>
-        </div>
-        <div className="flex flex-1 flex-col items-center justify-center gap-4 p-8">
-          <div className="w-full max-w-[480px] overflow-hidden rounded-xl shadow-2xl ring-1 ring-white/10">
-            {hook
-              ? <Thumb id={style} hook={hook} />
-              : <div className="aspect-video w-full bg-ink-800 flex flex-col items-center justify-center gap-2">
-                  <div className="font-mono text-[10px] tracking-widest text-white/20">APERÇU</div>
-                  <div className="font-mono text-[11px] tracking-widest text-white/15">Décris ta vidéo pour commencer</div>
-                </div>
-            }
-          </div>
+/* ═══ EXEMPLES TAB (placeholder) ═══ */
 
-          {/* Meta pills */}
-          {(hook || style) && (
-            <div className="flex flex-wrap justify-center gap-2 w-full max-w-[480px]">
-              {hook && (
-                <div className="flex items-center gap-2 rounded-lg border border-line bg-white/[0.02] px-3 py-2">
-                  <span className="font-mono text-[8px] tracking-widest text-white/30">HOOK</span>
-                  <span className="font-display text-[12px] tracking-tight text-white/75">{hook}</span>
-                </div>
-              )}
-              {hook && (
-                <div className="flex items-center gap-2 rounded-lg border border-line bg-white/[0.02] px-3 py-2">
-                  <span className="font-mono text-[8px] tracking-widest text-white/30">STYLE</span>
-                  <span className="text-[12px] text-white/65">{STYLES.find(s=>s.id===style)?.name}</span>
-                </div>
-              )}
-              {hook && (
-                <div className="flex items-center gap-2 rounded-lg border border-accent-success/20 bg-accent-success/[0.04] px-3 py-2">
-                  <span className="font-mono text-[8px] tracking-widest text-accent-success">CTR ESTIMÉ</span>
-                  <span className="font-semibold text-[13px] text-accent-success">{STYLES.find(s=>s.id===style)?.ctr} vs baseline</span>
-                </div>
-              )}
-            </div>
-          )}
-        </div>
+function ExemplesTab() {
+  return (
+    <div className="mt-12 flex flex-col items-center justify-center gap-4 rounded-xl border border-dashed border-line bg-white/[0.01] py-20 px-6 text-center">
+      <div className="font-mono text-[10px] tracking-widest text-white/40">BIBLIOTHÈQUE</div>
+      <h2 className="font-display text-[36px] leading-tight">EXEMPLES DE RÉFÉRENCE</h2>
+      <p className="mx-auto max-w-md text-[14px] text-white/50">
+        Stocke des miniatures qui t&apos;inspirent. Elles seront disponibles dans le studio pour orienter la génération.
+      </p>
+      <div className="font-mono text-[10px] tracking-widest text-white/30">
+        BIENTÔT DISPONIBLE
       </div>
     </div>
   );

@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useMemo, Suspense } from "react";
+import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { Thumb, STYLE_META, type StyleId } from "@/app/_components/thumbs";
 import { openModaleCreation } from "@/app/_components/ui/modale-creation";
@@ -63,24 +64,24 @@ function AccueilInner() {
           </p>
         </div>
         <div className="flex items-center gap-2">
-          <button
-            onClick={openModaleCreation}
+          <Link
+            href="/miniatures/new"
             className="inline-flex items-center gap-2 rounded-md border border-line bg-white/[0.02] px-4 py-2.5 text-[13px] text-white/85 hover:bg-white/[0.05]"
           >
             <svg viewBox="0 0 16 16" className="h-3.5 w-3.5" fill="none">
               <path d="M8 2L9.5 6.5L14 8L9.5 9.5L8 14L6.5 9.5L2 8L6.5 6.5L8 2Z" stroke="currentColor" strokeWidth="1.4" strokeLinejoin="round"/>
             </svg>
             Générer une variation
-          </button>
-          <button
-            onClick={openModaleCreation}
+          </Link>
+          <Link
+            href="/miniatures/new"
             className="inline-flex items-center gap-2 rounded-md bg-accent-cyan px-4 py-2.5 text-[13px] font-semibold text-black hover:shadow-[0_8px_28px_-8px_rgba(52,224,255,0.55)]"
           >
             <svg viewBox="0 0 16 16" className="h-3.5 w-3.5" fill="none">
               <path d="M8 2V14M2 8H14" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
             </svg>
             Nouvelle miniature
-          </button>
+          </Link>
         </div>
       </div>
 
